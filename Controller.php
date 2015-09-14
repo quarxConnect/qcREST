@@ -235,7 +235,7 @@
         if ($P1 instanceof qcREST_Interface_Collection) {
           // Check wheter to lookup a child
           if ((count ($Path) == 1) && (strlen ($Path [0]) == 0))
-            return $this->handleCollectionRequest ($Self, $Request, $Attributes, $outputProcessor, $Callback, $Private);
+            return $this->handleCollectionRequest ($Self, $P1, $Request, $Attributes, $outputProcessor, $Callback, $Private);
           
           // Try to lookup the next child
           return $P1->getChild (array_shift ($Path), $rFunc);
@@ -311,16 +311,22 @@
           // Retrive the attributes
           return $Resource->getAttributes (function (qcREST_Interface_Resource $Resource, array $Attributes = null) use ($Request, $outputProcessor, $Callback, $Private) {
             // Check if the request was successfull
-            if ($Attributes === null)
+            if ($Attributes === null) {
+              trigger_error ('Could not retrive attributes from resource');
+              
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
+            }
             
             # TODO: Process attributes?
             
             // Try to generate output
             return $outputProcessor->processOutput (function (qcREST_Interface_Processor $Processor, $Output, $OutputType, qcREST_Interface_Resource $Resource, array $Attributes, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private) {
               // Check if the processor returned an error
-              if ($Output === false)
+              if ($Output === false) {
+                trigger_error ('Output-Processor failed');
+                
                 return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
+              }
               
               // Create a response-object
               $Meta = array (
@@ -342,7 +348,7 @@
             if (!$Collection)
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
             
-            return $this->handleCollectionRequest ($Collection, $Request, $Attributes, $outputProcessor, $Callback, $Private);
+            return $this->handleCollectionRequest ($Self, $Collection, $Request, $Attributes, $outputProcessor, $Callback, $Private);
           });
         
         // Change attributes
@@ -368,8 +374,11 @@
           // Retrive the attributes first
           return $Resource->getAttributes (function (qcREST_Interface_Resource $Resource, array $currentAttributes = null) use ($Request, $Attributes, $Callback, $Private) {
             // Check if the attributes were retrived
-            if ($currentAttributes === null)
+            if ($currentAttributes === null) {
+              trigger_error ('Could not retrive current attribute-set');
+              
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
+            }
             
             // Update Attributes
             $requireAttributes = false;
@@ -399,6 +408,9 @@
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
           return $Resource->remove (function (qcREST_Interface_Resource $Self, $Status) use ($Request, $Callback, $Private) {
+            if (!$Status)
+              trigger_error ('Resource could not be removed');
+            
             return $this->respondStatus ($Request, ($Status ? qcREST_Interface_Response::STATUS_OK : qcREST_Interface_Response::STATUS_ERROR), null, $Callback, $Private);
           });
       }
@@ -425,7 +437,7 @@
      * @access private
      * @return bool
      **/
-    private function handleCollectionRequest (qcREST_Interface_Collection $Collection, qcREST_Interface_Request $Request, array $Attributes, qcREST_Interface_Processor $outputProcessor, callable $Callback, $Private = null) {
+    private function handleCollectionRequest (qcREST_Interface_Resource $Resource, qcREST_Interface_Collection $Collection, qcREST_Interface_Request $Request, array $Attributes, qcREST_Interface_Processor $outputProcessor, callable $Callback, $Private = null) {
       switch ($Request->getMethod ()) {
         // Retrive a listing of resources on this directory
         case $Request::METHOD_GET:
@@ -434,10 +446,13 @@
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
           // Request the children of this resource
-          return $Collection->getChildren (function (qcREST_Interface_Collection $Collection, array $Children = null) use ($Request, $outputProcessor, $Callback, $Private) {
+          return $Collection->getChildren (function (qcREST_Interface_Collection $Collection, array $Children = null) use ($Request, $Resource, $outputProcessor, $Callback, $Private) {
             // Check if the call was successfull
-            if ($Children === null)
+            if ($Children === null) {
+              trigger_error ('Failed to retrive the children');
+              
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
+            }
             
             // Create a listing
             $Attributes = array (
@@ -451,22 +466,28 @@
               $Item->uri = $this->getURI () . $Request->getURI () . rawurlencode ($Item->name);
             }
             
-            return $outputProcessor->processOutput (function (qcREST_Interface_Processor $Processor, $Output, $OutputType, $Collection, array $Attributes, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private) {
-              // Check if the processor returned an error
-              if ($Output === false)
-                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
-
-              // Create a response-object
-              $Meta = array (
-                'X-Resource-Type' => 'Collection',
-                'X-Resource-Class' => get_class ($Collection),
-              );
-              
-              $Response = new qcREST_Response ($Request, qcREST_Interface_Response::STATUS_OK, $Output, $OutputType, $Meta);
-
-              // Return the response
-              return $this->sendResponse ($Response, $Callback, $Private);
-            }, null, $Collection, $Attributes, $Request, $this);
+            return $outputProcessor->processOutput (
+              function (qcREST_Interface_Processor $Processor, $Output, $OutputType, $Collection, array $Attributes, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private) {
+                // Check if the processor returned an error
+                if ($Output === false) {
+                  trigger_error ('Output-Processor failed');
+                  
+                  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
+                }
+                
+                // Create a response-object
+                $Meta = array (
+                  'X-Resource-Type' => 'Collection',
+                  'X-Resource-Class' => get_class ($Collection),
+                );
+                
+                $Response = new qcREST_Response ($Request, qcREST_Interface_Response::STATUS_OK, $Output, $OutputType, $Meta);
+                
+                // Return the response
+                return $this->sendResponse ($Response, $Callback, $Private);
+              },
+              null, $Resource, $Attributes, $Request, $this
+            );
           });
         
         // Create a new resource on this directory
@@ -500,8 +521,11 @@
           // Request the children of this resource
           return $Collection->getChildren (function (qcREST_Interface_Collection $Collection, array $Children = null) use ($Removals, $Request, $outputProcessor, $Callback, $Private) {
             // Check if the call was successfull 
-            if ($Children === null)
+            if ($Children === null) {
+              trigger_error ('Failed to retrive the children');
+              
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
+            }
             
             // Split children up into updates and removals
             $Create = $Attributes;
