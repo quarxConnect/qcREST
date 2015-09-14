@@ -3,10 +3,32 @@
   require_once ('qcREST/Interface/Collection.php');
   
   class qcREST_Resource_Collection implements qcREST_Interface_Collection {
+    private $Children = array ();
+    private $Browsable = true;
     private $Writable = true;
     private $Removable = false;
-    private $Browsable = true;
-    private $Children = array ();
+    
+    // {{{ __construct
+    /**
+     * Create a new resource-collection
+     * 
+     * @param array $Children (optional) Children on this collection
+     * @param bool $Browsable (optional)
+     * @param bool $Writable (optional)
+     * @param bool $Removable (optional)
+     * 
+     * @access friendly
+     * @return void
+     **/
+    function __construct (array $Children = null, $Browsable = true, $Writable = true, $Removable = true) {
+      if ($Children)
+        $this->Children = $Children;
+      
+      $this->Browsable = $Browsable;
+      $this->Writable = $Writable;
+      $this->Removable = $Removable;
+    }
+    // }}}
     
     // {{{ isWritable
     /**
@@ -41,6 +63,24 @@
      **/
     public function isBrowsable () {
       return $this->Browsable;
+    }
+    // }}}
+    
+    // {{{ addChild
+    /**
+     * Append a child to our collection
+     * 
+     * @param qcREST_Interface_Resource $Child
+     * @param mixed $Offset (optional)
+     * 
+     * @access public
+     * @return void
+     **/
+    public function addChild (qcREST_Interface_Resource $Child, $Offset = null) {
+      if ($Offset !== null)
+        $this->Children [$Offset] = $Child;
+      else
+        $this->Children [] = $Child;
     }
     // }}}
     
