@@ -42,6 +42,16 @@
     public function getName ();
     // }}}
     
+    // {{{ hasChildCollection
+    /**
+     * Determine if this resource as a child-collection available
+     * 
+     * @access public
+     * @return bool
+     **/
+    public function hasChildCollection ();
+    // }}}
+    
     // {{{ getChildCollection
     /**
      * Retrive a child-collection for this node

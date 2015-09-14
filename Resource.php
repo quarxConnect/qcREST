@@ -8,7 +8,32 @@
     private $Removable = true;
     
     private $Name = '';
-    private $Attributes = array ('Hallo' => 'World');
+    private $Attributes = array ();
+    private $Collection = null;
+    
+    // {{{ __construct
+    /**
+     * Create a new resource
+     * 
+     * @param string $Name
+     * @param array $Attributes (optional)
+     * @param bool $Readable (optional)
+     * @param bool $Writable (optional)
+     * @param bool $Removable (optional)
+     * @param qcREST_Interface_Collection $Collection (optional)
+     * 
+     * @access friendly
+     * @return void
+     **/
+    function __construct ($Name = '', array $Attributes = array (), $Readable = true, $Writable = true, $Removable = true, qcREST_Interface_Collection $Collection = null) {
+      $this->Name = $Name;
+      $this->Attributes = $Attributes;
+      $this->Readable = $Readable;
+      $this->Writable = $Writable;
+      $this->Removable = $Removable;
+      $this->Collection = $Collection;
+    }
+    // }}}
     
     // {{{ isReadable
     /**
@@ -58,6 +83,18 @@
     }
     // }}}
     
+    // {{{ hasChildCollection
+    /**
+     * Determine if this resource as a child-collection available
+     * 
+     * @access public
+     * @return bool
+     **/
+    public function hasChildCollection () {
+      return ($this->Collection !== null);
+    }
+    // }}}
+    
     // {{{ getChildCollection
     /**
      * Retrive a child-collection for this node
@@ -73,9 +110,9 @@
      * @return bool
      **/
     public function getChildCollection (callable $Callback, $Private = null) {
-      call_user_func ($Callback, $this, null, $Private);
+      call_user_func ($Callback, $this, $this->Collection, $Private);
       
-      return false;
+      return ($this->Collection !== null);
     }
     // }}}
     
