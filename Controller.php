@@ -227,7 +227,13 @@
       if (strlen ($URI) == 0)
         return $this->handleResourceRequest ($this->Root, $Request, $Attributes, $outputProcessor, $Callback, $Private);
       
-      $Path = explode ('/', substr ($URI, 1));
+      $iPath = explode ('/', substr ($URI, 1));
+      $lPath = count ($iPath);
+      $Path = array ();
+      
+      for ($i = 0; $i < $lPath; $i++)
+        if (($i == 0) || ($i == $lPath - 1) || (strlen ($iPath [$i]) > 0))
+          $Path [] = $iPath [$i];
       
       $rFunc = null;
       $rFunc = function ($Self, $P1, $P2) use ($Request, $Attributes, $outputProcessor, $Callback, $Private, &$Path, &$rFunc) {
@@ -460,10 +466,18 @@
               'items' => array (),
             );
             
+            $baseURI = $this->getURI ();
+            $reqURI = $Request->getURI ();
+            
+            if (($baseURI [strlen ($baseURI) - 1] == '/') && ($reqURI [0] == '/'))
+              $baseURI .= substr ($reqURI, 1);
+            else
+              $baseURI .= $reqURI;
+            
             foreach ($Children as $Child) {
               $Attributes ['items'][] = $Item = new stdClass;
               $Item->name = $Child->getName ();
-              $Item->uri = $this->getURI () . $Request->getURI () . rawurlencode ($Item->name);
+              $Item->uri = $baseURI . rawurlencode ($Item->name);
             }
             
             return $outputProcessor->processOutput (
