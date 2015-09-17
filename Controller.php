@@ -501,7 +501,7 @@
             
             $attrHandler = function (qcREST_Interface_Resource $Resource, array $Attributes = null, $Item) use ($finalHandler, &$Attrs) {
               // Make sure we don't overwrite special keys
-              unset ($Attributes ['name'], $Attributes ['uri']);
+              unset ($Attributes ['name'], $Attributes ['uri'], $Attributes ['isCollection']);
               
               // Merge the attributes
               foreach ($Attributes as $Key=>$Value)
@@ -516,6 +516,7 @@
               $Attributes ['items'][] = $Item = new stdClass;
               $Item->name = $Child->getName ();
               $Item->uri = $baseURI . rawurlencode ($Item->name);
+              $Item->isCollection = $Child->hasChildCollection ();
               
               if ($Child instanceof qcRest_Interface_Collection_Attributes) {
                 $Attrs++;
