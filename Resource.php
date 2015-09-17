@@ -83,6 +83,20 @@
     }
     // }}}
     
+    // {{{ setName
+    /**
+     * Change the name of this resource
+     * 
+     * @param string $Name
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setName ($Name) {
+      $this->Name = $Name;
+    }
+    // }}}
+    
     // {{{ hasChildCollection
     /**
      * Determine if this resource as a child-collection available
@@ -113,6 +127,18 @@
       call_user_func ($Callback, $this, $this->Collection, $Private);
       
       return ($this->Collection !== null);
+    }
+    // }}}
+    
+    // {{{ unsetChildCollection
+    /**
+     * Remove any child-collection from this node
+     * 
+     * @access public
+     * @return void
+     **/
+    public function unsetChildCollection () {
+      $this->Collection = null;
     }
     // }}}
     
