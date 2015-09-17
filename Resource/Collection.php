@@ -7,6 +7,7 @@
     private $Browsable = true;
     private $Writable = true;
     private $Removable = false;
+    private $Callbacks = array ();
     
     // {{{ __construct
     /**
@@ -84,6 +85,27 @@
     }
     // }}}
     
+    // {{{ addChildCallback
+    /**
+     * Add a callback to be raised once children are requested from this collection
+     * 
+     * @param callable $Callback
+     * @param mixed $Private (optional)
+     * 
+     * The callback will be raised in the form of
+     * 
+     *   function (qcREST_REsource_Collection $Self, string $Name = null, array $Children, callable $Callback, mixed $Private) { }
+     * 
+     * The variable contains the name of a children if a single one is requested, $Children will carry the actual child-set
+     * 
+     * @access public
+     * @return void
+     **/
+    public function addChildCallback (callable $Callback, $Private = null) {
+      $this->Callbacks [] = array ($Callback, $Private);
+    }
+    // }}}
+    
     // {{{ getChildren
     /**
      * Retrive all children on this directory
@@ -99,8 +121,31 @@
      * @return bool  
      **/
     public function getChildren (callable $Callback, $Private = null) {
-      call_user_func ($Callback, $this, $this->Children, $Private);
+      // Setup handler
+      $Counter = 1;
+      $Handler = function () use (&$Counter, $Callback, $Private) {
+        // Check if we are ready
+        if (--$Counter > 0)
+          return;
+        
+        call_user_func ($Callback, $this, $this->Children, $Private);
+      };
       
+      // Process callbacks if registered
+      if (count ($this->Callbacks) > 0) {
+        // Raise all callbacks
+        foreach ($this->Callbacks as $cCallback) {
+          $Counter++;
+          call_user_func ($cCallback [0], $this, null, $this->Children, $Handler, $cCallback [1]);
+        }
+        
+        // Stop here if callbacks are pending
+        if ($Counter-- > 1)
+          return;
+      }
+      
+      // Just call the handler if we get here
+      call_user_func ($Handler);
       return true;
     }
     // }}}
@@ -121,15 +166,36 @@
      * @return bool  
      **/
     public function getChild ($Name, callable $Callback, $Private = null) {
-      foreach ($this->Children as $Child)
-        if ($Child->getName () == $Name) {
-          call_user_func ($Callback, $this, $Name, $Child, $Private);
-          
-          return true;
+      // Setup handler
+      $Counter = 1;
+      $Handler = function () use (&$Counter, $Name, $Callback, $Private) {
+        // Check if we are ready
+        if (--$Counter > 0)
+          return;
+        
+        // Look for a matching child
+        foreach ($this->Children as $Child)
+          if ($Child->getName () == $Name)
+            return call_user_func ($Callback, $this, $Name, $Child, $Private);
+        
+        // Just return nothing
+        return call_user_func ($Callback, $this, $Name, null, $Private);
+      };
+      
+      if (count ($this->Callbacks) > 0) {
+        // Raise all callbacks
+        foreach ($this->Callbacks as $cCallback) {
+          $Counter++;
+          call_user_func ($cCallback [0], $this, $Name, $this->Children, $Handler, $cCallback [1]);
         }
+        
+        // Stop here if callbacks are pending
+        if ($Counter-- > 1)
+          return;
+      }
       
-      call_user_func ($Callback, $this, $Name, null, $Private);
-      
+      // Just call the handler if we get here
+      call_user_func ($Handler);
       return true;
     }
     // }}}
