@@ -474,34 +474,61 @@
             else
               $baseURI .= $reqURI;
             
+            $Attrs = 1;
+            $finalHandler = function () use ($Resource, &$Attributes, $Request, $outputProcessor, $Callback, $Private) {
+              return $outputProcessor->processOutput (
+                function (qcREST_Interface_Processor $Processor, $Output, $OutputType, $Collection, array $Attributes, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private) {
+                  // Check if the processor returned an error
+                  if ($Output === false) {
+                    trigger_error ('Output-Processor failed');
+                    
+                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
+                  }
+                  
+                  // Create a response-object
+                  $Meta = array (
+                    'X-Resource-Type' => 'Collection',
+                    'X-Resource-Class' => get_class ($Collection),
+                  );
+                  
+                  $Response = new qcREST_Response ($Request, qcREST_Interface_Response::STATUS_OK, $Output, $OutputType, $Meta);
+                  
+                  // Return the response
+                  return $this->sendResponse ($Response, $Callback, $Private);
+                }, null, $Resource, $Attributes, $Request, $this
+              );
+            };
+            
+            $attrHandler = function (qcREST_Interface_Resource $Resource, array $Attributes = null, $Item) use ($finalHandler, &$Attrs) {
+              // Make sure we don't overwrite special keys
+              unset ($Attributes ['name'], $Attributes ['uri']);
+              
+              // Merge the attributes
+              foreach ($Attributes as $Key=>$Value)
+                $Item->$Key = $Value;
+              
+              // Check if this is the last callback
+              if (--$Attrs < 1)
+                call_user_func ($finalHandler);
+            };
+            
             foreach ($Children as $Child) {
               $Attributes ['items'][] = $Item = new stdClass;
               $Item->name = $Child->getName ();
               $Item->uri = $baseURI . rawurlencode ($Item->name);
+              
+              if ($Child instanceof qcRest_Interface_Collection_Attributes) {
+                $Attrs++;
+                $Child->getCollectionAttributes ($attrHandler, $Item);
+              }
             }
             
-            return $outputProcessor->processOutput (
-              function (qcREST_Interface_Processor $Processor, $Output, $OutputType, $Collection, array $Attributes, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private) {
-                // Check if the processor returned an error
-                if ($Output === false) {
-                  trigger_error ('Output-Processor failed');
-                  
-                  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
-                }
-                
-                // Create a response-object
-                $Meta = array (
-                  'X-Resource-Type' => 'Collection',
-                  'X-Resource-Class' => get_class ($Collection),
-                );
-                
-                $Response = new qcREST_Response ($Request, qcREST_Interface_Response::STATUS_OK, $Output, $OutputType, $Meta);
-                
-                // Return the response
-                return $this->sendResponse ($Response, $Callback, $Private);
-              },
-              null, $Resource, $Attributes, $Request, $this
-            );
+            if ($Attrs == 1)
+              return call_user_func ($finalHandler);
+            
+            $Attrs--;
+            
+            return;
           });
         
         // Create a new resource on this directory
