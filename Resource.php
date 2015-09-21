@@ -130,6 +130,20 @@
     }
     // }}}
     
+    // {{{ setChildCollection
+    /**
+     * Store a child-collection on this resource
+     * 
+     * @param qcREST_Interface_Collection $Collection
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setChildCollection (qcREST_Interface_Collection $Collection) {
+      $this->Collection = $Collection;
+    }
+    // }}}
+    
     // {{{ unsetChildCollection
     /**
      * Remove any child-collection from this node
