@@ -7,6 +7,9 @@
     /* Stored resources */
     private $Resources = array ();
     
+    /* Separator for merged resources */
+    private $Separator = ',';
+    
     // {{{ __construct
     /**
      * Create a new Merge-Resource
@@ -263,9 +266,29 @@
      * @return bool
      **/
     public function getChild ($Name, callable $Callback, $Private = null) {
-      # TODO
+      # TODO: Speed this up
       return $this->getChildren (function (qcREST_Interface_Collection $Self, array $Resources = null) use ($Name, $Callback, $Private) {
-        return call_user_func ($Callback, $this, $Name, (is_array ($Resources) && isset ($Resources [$Name]) ? $Resources [$Name] : null), $Private);
+        // Check if the call was successfull
+        if (!is_array ($Resources))
+          return call_user_func ($Callback, $this, $Name, null, $Private);
+        
+        // Check if we have a direct match
+        if (isset ($Resources [$Name]))
+          return call_user_func ($Callback, $this, $Name, $Resources [$Name], $Private);
+        
+        // Try to split the name up
+        if (count ($Names = explode ($this->Separator, $Name)) < 2)
+          return call_user_func ($Callback, $this, $Name, null, $Private);
+        
+        // Create a new merge
+        $Merge = new $this ($Name);
+        
+        foreach ($Names as $Part)
+          if (isset ($Resources [$Part]))
+            $Merge->addResource ($Resources [$Part]);
+        
+        // Return the lookup-result
+        return call_user_func ($Callback, $this, $Name, ($Merge->hasResources () ? $Merge : null), $Private);
       });
     }
     // }}}
