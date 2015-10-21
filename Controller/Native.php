@@ -4,6 +4,32 @@
   require_once ('qcREST/Request.php');
   
   class qcREST_Controller_Native extends qcREST_Controller {
+    /* Virtual Base-URI */
+    private $virtualBaseURI = null;
+    
+    // {{{ setVirtualBaseURI
+    /**
+     * Set a base-uri to strip from virtual URIs
+     * 
+     * @param string $URI
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setVirtualBaseURI ($URI) {
+      if (strlen ($URI) > 1) {
+        $this->virtualBaseURI = strval ($URI);
+        
+        if ($this->virtualBaseURI [strlen ($this->virtualBaseURI) - 1] == '/')
+          $this->virtualBaseURI = substr ($this->virtualBaseURI, 0, -1);
+        
+        if ($this->virtualBaseURI [0] != '/')
+          $this->virtualBaseURI = '/' . $this->virtualBaseURI;
+      } else
+        $this->virtualBaseURI = null;
+    }
+    // }}}
+    
     // {{{ getURI
     /**
      * Retrive the URI of this controller
@@ -22,12 +48,12 @@
       
       if (($lP > 1) && (substr ($URI, 0, $lP) == $scriptPath)) {
         if (substr ($URI, $lP + 1, $lN) == $scriptName)
-          return $Prefix . $_SERVER ['SCRIPT_NAME'];
+          return $Prefix . $_SERVER ['SCRIPT_NAME'] . ($this->virtualBaseURI ? $this->virtualBaseURI : '') . '/';
         else
-          return $Prefix . $scriptPath . '/';
+          return $Prefix . $scriptPath . ($this->virtualBaseURI ? $this->virtualBaseURI : '') . '/';
       }
       
-      return $Prefix . $_SERVER ['SCRIPT_NAME'];
+      return $Prefix . $_SERVER ['SCRIPT_NAME'] . ($this->virtualBaseURI ? $this->virtualBaseURI : '') . '/';
     }
     // }}}
     
@@ -66,6 +92,10 @@
       
       } elseif (($lP == 1) && (substr ($URI, 1, $lN) == $scriptName))
         $URI = substr ($URI, $lN + 1);
+      
+      // Check wheter to strip virtual base URI
+      if (($this->virtualBaseURI !== null) && (substr ($URI, 0, strlen ($this->virtualBaseURI) + 1) == $this->virtualBaseURI . '/'))
+        $URI = substr ($URI, strlen ($this->virtualBaseURI));
       
       // Check if there is a request-body
       global $HTTP_RAW_POST_DATA;

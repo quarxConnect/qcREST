@@ -3,6 +3,8 @@
   require_once ('qcREST/Interface/Controller.php');
   require_once ('qcREST/Response.php');
   
+  ini_set ('display_errors', 'Off');
+  
   abstract class qcREST_Controller implements qcREST_Interface_Controller {
     private $Root = null;
     private $Processors = array ();
