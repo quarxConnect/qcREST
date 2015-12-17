@@ -546,8 +546,20 @@
             if (!$Child)
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, null, $Callback, $Private);
             
-            # TODO: Respond with STATUS_CREATED and Location
-            return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CREATED, null, $Callback, $Private);
+            $URI = $this->getURI ();
+            $reqURI = $Request->getURI ();   
+            
+            if ($reqURI [strlen ($reqURI) - 1] != '/')
+              $reqURI .= '/';
+            
+            if (($URI [strlen ($URI) - 1] == '/') && ($reqURI [0] == '/'))
+              $URI .= substr ($reqURI, 1);
+            else
+              $URI .= $reqURI;
+            
+            $URI .= rawurlencode ($Child->getName ());
+            
+            return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CREATED, array ('Location' => $URI), $Callback, $Private);
           });
         
         // Replace all resources on this directory (PUT) with new ones or just add a new set (PATCH)
