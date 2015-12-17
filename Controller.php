@@ -542,7 +542,7 @@
           if (!$Collection->isWritable ())
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
-          return $Collection->createChild ($Representation, null, function (qcREST_Interface_Collection $Self, $Name = null, qcREST_Interface_Resource $Child = null) use ($Callback, $Private, $Request) {
+          return $Collection->createChild ($Representation, null, function (qcREST_Interface_Collection $Self, $Name = null, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null) use ($Callback, $Private, $Request) {
             if (!$Child)
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, null, $Callback, $Private);
             
@@ -603,13 +603,14 @@
                 $Removals [] = $Child;
             
             $func = null;
-            $func = function ($Self = null, $P1 = null, $P2 = null) use ($Request, $outputProcessor, $Resource, &$Create, &$Updates, &$Removals, $Representation, &$func, $Callback, $Private) {
+            $func = function ($Self = null, $P1 = null, $P2 = null, $P3 = null) use ($Request, $outputProcessor, $Resource, &$Create, &$Updates, &$Removals, $Representation, &$func, $Callback, $Private) {
               // Check if we are returning
               if ($Self) {
                 // Check if we tried to create a child
                 if ($Self === $this) {
-                  $Name = &$P1;
-                  $Child = &$P2;
+                  $Name = $P1;
+                  $Child = $P2;
+                  $cRepresentation = $P3;
                   
                   if (!$Child)
                     return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, null, $Callback, $Private);
