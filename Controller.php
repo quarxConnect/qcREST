@@ -326,28 +326,7 @@
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
             }
             
-            # TODO: Process attributes?
-            
-            // Try to generate output
-            return $outputProcessor->processOutput (function (qcREST_Interface_Processor $Processor, $Output, $OutputType, qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private) {
-              // Check if the processor returned an error
-              if ($Output === false) {
-                trigger_error ('Output-Processor failed');
-                
-                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
-              }
-              
-              // Create a response-object
-              $Meta = array (
-                'X-Resource-Type' => 'Resource',
-                'X-Resource-Class' => get_class ($Resource),
-              );
-              
-              $Response = new qcREST_Response ($Request, qcREST_Interface_Response::STATUS_OK, $Output, $OutputType, $Meta);
-              
-              // Return the response
-              return $this->sendResponse ($Response, $Callback, $Private);
-            }, null, $Resource, $Representation, $Request, $this);
+            return $this->handleRepresentation ($Request, $Resource, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, null, $Callback, $Private);
           });
         
         // Check if a new sub-resource is requested
@@ -463,13 +442,8 @@
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
             }
             
-            // Create a listing
-            $Attributes = array (
-              'type' => 'listing',
-              'items' => array (),
-            );
-            
-            $baseURI = $this->getURI ();
+            // Determine the base-URI
+            $baseURI = $this->getURI ();  
             $reqURI = $Request->getURI ();
             
             if (($baseURI [strlen ($baseURI) - 1] == '/') && ($reqURI [0] == '/'))
@@ -477,59 +451,44 @@
             else
               $baseURI .= $reqURI;
             
-            $Attrs = 1;
-            $finalHandler = function () use ($Resource, &$Attributes, $Request, $outputProcessor, $Callback, $Private) {
-              return $outputProcessor->processOutput (
-                function (qcREST_Interface_Processor $Processor, $Output, $OutputType, $Collection, qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private) {
-                  // Check if the processor returned an error
-                  if ($Output === false) {
-                    trigger_error ('Output-Processor failed');
-                    
-                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
-                  }
-                  
-                  // Create a response-object
-                  $Meta = array (
-                    'X-Resource-Type' => 'Collection',
-                    'X-Resource-Class' => get_class ($Collection),
-                  );
-                  
-                  $Response = new qcREST_Response ($Request, qcREST_Interface_Response::STATUS_OK, $Output, $OutputType, $Meta);
-                  
-                  // Return the response
-                  return $this->sendResponse ($Response, $Callback, $Private);
-                }, null, $Resource, new qcREST_Representation ($Attributes), $Request, $this
-              );
-            };
+            // Create a listing
+            $Representation = new qcREST_Representation (array (
+              'type' => 'listing',
+            ));
             
-            $attrHandler = function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation = null, $Item) use ($finalHandler, &$Attrs) {
-              // Make sure we don't overwrite special keys
-              unset ($Representation ['name'], $Representation ['uri'], $Representation ['isCollection']);
-              
-              // Merge the attributes
-              if ($Representation !== null)
-                foreach ($Representation as $Key=>$Value)
-                  $Item->$Key = $Value;
-              
-              // Check if this is the last callback
-              if (--$Attrs < 1)
-                call_user_func ($finalHandler);
-            };
+            $Attrs = 1;
+            $Items = array ();
             
             foreach ($Children as $Child) {
-              $Attributes ['items'][] = $Item = new stdClass;
+              $Items [] = $Item = new stdClass;
               $Item->name = $Child->getName ();
               $Item->uri = $baseURI . rawurlencode ($Item->name);
               $Item->isCollection = $Child->hasChildCollection ();
               
               if ($Child instanceof qcRest_Interface_Collection_Representation) {
                 $Attrs++;
-                $Child->getCollectionRepresentation ($attrHandler, $Item);
+                $Child->getCollectionRepresentation (
+                  function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation = null) use (&$Attrs, $Item) {
+                    // Make sure we don't overwrite special keys
+                    unset ($Representation ['name'], $Representation ['uri'], $Representation ['isCollection']);
+                    
+                    // Merge the attributes
+                    if ($Representation !== null)
+                      foreach ($Representation as $Key=>$Value)
+                        $Item->$Key = $Value;
+                    
+                    // Check if this is the last callback
+                    if (--$Attrs < 1)
+                      $this->handleRepresentation ($Request, $Resource, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, array ('X-Resource-Type' => 'Collection'), $Callback, $Private);
+                  }
+                );
               }
             }
             
+            $Representation ['items'] = $Items;
+            
             if ($Attrs == 1)
-              return call_user_func ($finalHandler);
+              return $this->handleRepresentation ($Request, $Resource, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, array ('X-Resource-Type' => 'Collection'), $Callback, $Private);
             
             $Attrs--;
             
@@ -542,10 +501,12 @@
           if (!$Collection->isWritable ())
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
-          return $Collection->createChild ($Representation, null, function (qcREST_Interface_Collection $Self, $Name = null, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null) use ($Callback, $Private, $Request) {
+          return $Collection->createChild ($Representation, null, function (qcREST_Interface_Collection $Self, $Name = null, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null) use ($outputProcessor, $Callback, $Private, $Request) {
+            // Check if a new child was created
             if (!$Child)
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, null, $Callback, $Private);
             
+            // Create URI for newly created child
             $URI = $this->getURI ();
             $reqURI = $Request->getURI ();   
             
@@ -558,6 +519,10 @@
               $URI .= $reqURI;
             
             $URI .= rawurlencode ($Child->getName ());
+            
+            // Process the response
+            if ($Representation)
+              return $this->handleRepresentation ($Request, $Child, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_CREATED, array ('Location' => $URI), $Callback, $Private);
             
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CREATED, array ('Location' => $URI), $Callback, $Private);
           });
@@ -677,6 +642,73 @@
       #   METHOD_OPTIONS
       
       return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_UNSUPPORTED, null, $Callback, $Private);
+    }
+    // }}}
+    
+    // {{{ handleRepresentation
+    /**
+     * Process Representation and generate output
+     * 
+     * @param qcREST_Interface_Request $Request
+     * @param qcREST_Interface_Resource $Resource
+     * @param qcREST_Interface_Representation $Representation
+     * @param qcREST_Interface_Processor $outputProcessor
+     * @param enum $Status
+     * @param array $Meta (optional)
+     * @param callable $Callback
+     * @param mixed $Private (optional)
+     * 
+     * @access private
+     * @return void
+     **/
+    private function handleRepresentation (
+      qcREST_Interface_Request $Request,
+      qcREST_Interface_Resource $Resource,
+      qcREST_Interface_Representation $Representation,
+      qcREST_Interface_Processor $outputProcessor,
+      $Status,
+      array $Meta = null,
+      callable $Callback, $Private = null
+    ) {
+      // Check if the representation overrides something
+      if (($newStatus = $Representation->getStatus ()) !== null)
+        $Status = $newStatus;
+      
+      // Make sure meta is an array
+      if (!is_array ($Meta))
+        $Meta = array ();
+      
+      // Remove any redirects if unwanted
+      if (isset ($Meta ['Location']) && !$Representation->allowRedirect ())
+        unset ($Meta ['Location']);
+      
+      // Just pass the status if the representation is empty
+      if (count ($Representation) == 0)
+        return $this->respondStatus ($Request, $Status, $Meta, $Callback, $Private);
+      
+      // Process the output
+      return $outputProcessor->processOutput (
+        function (qcREST_Interface_Processor $Processor, $Output, $OutputType, qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private, $Status, $Meta) {
+          // Check if the processor returned an error
+          if ($Output === false) {
+            trigger_error ('Output-Processor failed');
+            
+            return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
+          }
+          
+          // Create a response-object
+          if (!isset ($Meta ['X-Resource-Type']))
+            $Meta ['X-Resource-Type'] = 'Resource';
+          
+          $Meta ['X-Resource-Class'] = get_class ($Resource);
+          
+          $Response = new qcREST_Response ($Request, $Status, $Output, $OutputType, $Meta);
+          
+          // Return the response
+          return $this->sendResponse ($Response, $Callback, $Private);
+        }, null,
+        $Resource, $Representation, $Request, $this
+      );
     }
     // }}}
     

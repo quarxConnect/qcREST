@@ -26,6 +26,18 @@
     }
     // }}}
     
+    // {{{ getStatus
+    /**
+     * Retrive the desired status
+     * 
+     * @access public
+     * @return enum NULL if not set
+     **/
+    public function getStatus () {
+      return $this->Status;
+    }
+    // }}}
+    
     // {{{ setStatus
     /**
      * Force a specific status for the output

@@ -1,6 +1,16 @@
 <?PHP
 
   interface qcREST_Interface_Representation extends Countable, ArrayAccess, Traversable {
+    // {{{ getStatus
+    /**
+     * Retrive the desired status
+     * 
+     * @access public
+     * @return enum NULL if not set
+     **/
+    public function getStatus ();
+    // }}}
+    
     // {{{ setStatus
     /**
      * Force a specific status for the output
