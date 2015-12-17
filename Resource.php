@@ -1,6 +1,7 @@
 <?PHP
 
   require_once ('qcREST/Interface/Resource.php');
+  require_once ('qcREST/Representation.php');
   
   class qcRest_Resource implements qcREST_Interface_Resource {
     private $Readable = true;
@@ -156,47 +157,47 @@
     }
     // }}}
     
-    // {{{ getAttributes
+    // {{{ getRepresentation
     /**
-     * Retrive all attributes of this resource
+     * Retrive a representation of this resource
      * 
      * @param callable $Callback A callback to fire once the operation was completed
      * @param mixed $Private (optional) Some private data to pass to the callback   
      * 
      * The callback will be raised once the operation was completed in the form of:
      * 
-     *   function (qcREST_Interface_Resource $Self, array $Attributes = null, mixed $Private) { }
+     *   function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation = null, mixed $Private) { }
      * 
      * @access public
      * @return bool  
      **/
-    public function getAttributes (callable $Callback, $Private = null) {
-      call_user_func ($Callback, $this, $this->Attributes, $Private);
+    public function getRepresentation (callable $Callback, $Private = null) {
+      call_user_func ($Callback, $this, new qcREST_Representation ($this->Attributes), $Private);
       
       return true;
     }
     // }}}
     
-    // {{{ setAttributes
+    // {{{ setRepresentation
     /**
-     * Store a set of attributes
+     * Update this resource with a given representation
      * 
-     * @param array $Attributes Attributes to set on this resource
+     * @param qcREST_Interface_Representation $Representation Representation to update this resource with
      * @param callable $Callback (optional) A callback to fire once the operation was completed
      * @param mixed $Private (optional) Some private data to pass to the callback
      * 
      * The callback will be raised once the operation was completed in the form of:
      * 
-     *   function (qcREST_Interface_Resource $Self, array $Attributes, bool $Status, mixed $Private) { }
+     *   function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation, bool $Status, mixed $Private) { }
      * 
      * @access public
      * @return bool  
      **/
-    public function setAttributes (array $Attributes, callable $Callback = null, $Private = null) {
-      $this->Attributes = $Attributes;
+    public function setRepresentation (qcREST_Interface_Representation $Representation, callable $Callback = null, $Private = null) {
+      $this->Attributes = (array)$Representation->toArray ();
       
       if ($Callback)
-        call_user_func ($Callback, $this, $Attributes, true, $Private);
+        call_user_func ($Callback, $this, $Representation, true, $Private);
       
       return true;
     }

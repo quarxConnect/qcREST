@@ -5,17 +5,34 @@
   class qcREST_Request implements qcREST_Interface_Request {
     private $requestURI = '';
     private $requestMethod = 0;
+    private $requestParameters = array ();
     private $requestContent = '';
     private $requestContentType = '';
     private $acceptedContentTypes = array ();
     
-    function __construct ($URI, $Method, $Content, $ContentType, $acceptedContentTypes) {
+    // {{{ __construct
+    /**
+     * Create a new Request
+     * 
+     * @param string $URI The requested URI
+     * @param string $Method The used request-method
+     * @param array $Parameters Additional Parameters for this request
+     * @param string $Content The payload from the request
+     * @param string $ContentType Type of payload
+     * @param array $acceptedContentTypes List of accepted content-types
+     * 
+     * @access friendly
+     * @return void
+     **/
+    function __construct ($URI, $Method, array $Parameters, $Content, $ContentType, array $acceptedContentTypes) {
       $this->requestURI = $URI;
       $this->requestMethod = $Method;
+      $this->requestParameters = $Parameters;
       $this->requestContent = $Content;
       $this->requestContentType = $ContentType;
       $this->acceptedContentTypes = $acceptedContentTypes;
     }
+    // }}}
     
     // {{{ getMethod
     /**
@@ -39,6 +56,30 @@
     public function getURI () {
       return $this->requestURI;
     }
+    // }}}
+    
+    // {{{ getParameters
+    /**
+     * Retrive additional parameters for this request
+     * 
+     * @access public
+     * @return array
+     **/
+    public function getParameters () {
+      return $this->requestParameters;
+    }
+    // }}}
+    
+    // {{{ getUser
+    /**
+     * Retrive the user that was authenticated with this request
+     * Authentication means any kind of identification but NOT authorized. Resources have to check on their own
+     * if a user is authorized to access the resource!
+     * 
+     * @access public 
+     * @return qcVCard
+     **/
+    public function getUser () { }
     // }}}
     
     // {{{ getContentType

@@ -29,6 +29,28 @@
     public function getURI ();
     // }}}
     
+    // {{{ getParameters
+    /**
+     * Retrive additional parameters for this request
+     * 
+     * @access public
+     * @return array
+     **/
+    public function getParameters ();
+    // }}}
+    
+    // {{{ getUser
+    /**
+     * Retrive the user that was authenticated with this request
+     * Authentication means any kind of identification but NOT authorized. Resources have to check on their own
+     * if a user is authorized to access the resource!
+     * 
+     * @access public
+     * @return qcVCard
+     **/
+    public function getUser ();
+    // }}}
+    
     // {{{ getContentType
     /**
      * Retrive the content-type of the request-body

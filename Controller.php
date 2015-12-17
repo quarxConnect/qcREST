@@ -2,6 +2,7 @@
 
   require_once ('qcREST/Interface/Controller.php');
   require_once ('qcREST/Response.php');
+  require_once ('qcREST/Representation.php');
   
   ini_set ('display_errors', 'Off');
   
@@ -211,13 +212,13 @@
           return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_MISSING, null, $Callback, $Private);
         
         // Try to parse the request-body
-        elseif (!($Attributes = $inputProcessor->processInput ($Input)))
+        elseif (!($Representation = $inputProcessor->processInput ($Input)))
           return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_ERROR, null, $Callback, $Private);
       } elseif ($Request->getContent () !== null)
         return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_ERROR, null, $Callback, $Private);
       
       else
-        $Attributes = array ();
+        $Representation = null;
       
       // Make sure we have a root-element assigned
       if (!$this->Root)
@@ -227,7 +228,7 @@
       $URI = $Request->getURI ();
       
       if (strlen ($URI) == 0)
-        return $this->handleResourceRequest ($this->Root, $Request, $Attributes, $outputProcessor, $Callback, $Private);
+        return $this->handleResourceRequest ($this->Root, $Request, $Representation, $outputProcessor, $Callback, $Private);
       
       $iPath = explode ('/', substr ($URI, 1));
       $lPath = count ($iPath);
@@ -238,12 +239,12 @@
           $Path [] = $iPath [$i];
       
       $rFunc = null;
-      $rFunc = function ($Self, $P1, $P2) use ($Request, $Attributes, $outputProcessor, $Callback, $Private, &$Path, &$rFunc) {
+      $rFunc = function ($Self, $P1, $P2) use ($Request, $Representation, $outputProcessor, $Callback, $Private, &$Path, &$rFunc) {
         // We got a child-collection
         if ($P1 instanceof qcREST_Interface_Collection) {
           // Check wheter to lookup a child
           if ((count ($Path) == 1) && (strlen ($Path [0]) == 0))
-            return $this->handleCollectionRequest ($Self, $P1, $Request, $Attributes, $outputProcessor, $Callback, $Private);
+            return $this->handleCollectionRequest ($Self, $P1, $Request, $Representation, $outputProcessor, $Callback, $Private);
           
           // Try to lookup the next child
           return $P1->getChild (array_shift ($Path), $rFunc);
@@ -256,7 +257,7 @@
         } elseif ($P2 instanceof qcREST_Interface_Resource) {
           // Check if we reached the end
           if (count ($Path) == 0)
-            return $this->handleResourceRequest ($P2, $Request, $Attributes, $outputProcessor, $Callback, $Private);
+            return $this->handleResourceRequest ($P2, $Request, $Representation, $outputProcessor, $Callback, $Private);
           
           // Try to retrive the child-collection of this resource
           return $P2->getChildCollection ($rFunc);
@@ -272,7 +273,7 @@
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_FOUND, null, $Callback, $Private);
           
           // Try to create the child
-          return $Self->createChild ($Attributes, $Name, function (qcREST_Interface_Collection $Self, $Name = null, qcREST_Interface_Resource $Child = null) use ($Request, $Callback, $Private) {
+          return $Self->createChild ($Representation, $Name, function (qcREST_Interface_Collection $Self, $Name = null, qcREST_Interface_Resource $Child = null) use ($Request, $Callback, $Private) {
             // Check if Child count not be created or attributes were rejected
             if (!$Child)
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, null, $Callback, $Private);
@@ -300,7 +301,7 @@
      * 
      * @param qcREST_Interface_Resource $Resource
      * @param qcREST_Interface_Request $Request
-     * @param array $Attributes
+     * @param qcREST_Interface_Representation $Representation (optional)
      * @param qcREST_Interface_Processor $outputProcessor
      * @param callable $Callback
      * @param mixed $Private (optional)
@@ -308,7 +309,7 @@
      * @access private
      * @return bool
      **/
-    private function handleResourceRequest (qcREST_Interface_Resource $Resource, qcREST_Interface_Request $Request, array $Attributes, qcREST_Interface_Processor $outputProcessor, callable $Callback, $Private = null) {
+    private function handleResourceRequest (qcREST_Interface_Resource $Resource, qcREST_Interface_Request $Request, qcREST_Interface_Representation $Representation = null, qcREST_Interface_Processor $outputProcessor, callable $Callback, $Private = null) {
       switch ($Request->getMethod ()) {
         // Generate a normal representation of that resource
         case $Request::METHOD_GET:
@@ -317,9 +318,9 @@
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
           // Retrive the attributes
-          return $Resource->getAttributes (function (qcREST_Interface_Resource $Resource, array $Attributes = null) use ($Request, $outputProcessor, $Callback, $Private) {
+          return $Resource->getRepresentation (function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation = null) use ($Request, $outputProcessor, $Callback, $Private) {
             // Check if the request was successfull
-            if ($Attributes === null) {
+            if ($Representation === null) {
               trigger_error ('Could not retrive attributes from resource');
               
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
@@ -328,7 +329,7 @@
             # TODO: Process attributes?
             
             // Try to generate output
-            return $outputProcessor->processOutput (function (qcREST_Interface_Processor $Processor, $Output, $OutputType, qcREST_Interface_Resource $Resource, array $Attributes, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private) {
+            return $outputProcessor->processOutput (function (qcREST_Interface_Processor $Processor, $Output, $OutputType, qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private) {
               // Check if the processor returned an error
               if ($Output === false) {
                 trigger_error ('Output-Processor failed');
@@ -346,17 +347,17 @@
               
               // Return the response
               return $this->sendResponse ($Response, $Callback, $Private);
-            }, null, $Resource, $Attributes, $Request, $this);
+            }, null, $Resource, $Representation, $Request, $this);
           });
         
         // Check if a new sub-resource is requested
         case $Request::METHOD_POST:
           // Convert the request into a directory-request if possible
-          return $Resource->getChildCollection (function (qcREST_Interface_Resource $Self, qcREST_Interface_Collection $Collection = null) use ($Request, $Attributes, $outputProcessor, $Callback, $Private) {
+          return $Resource->getChildCollection (function (qcREST_Interface_Resource $Self, qcREST_Interface_Collection $Collection = null) use ($Request, $Representation, $outputProcessor, $Callback, $Private) {
             if (!$Collection)
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
             
-            return $this->handleCollectionRequest ($Self, $Collection, $Request, $Attributes, $outputProcessor, $Callback, $Private);
+            return $this->handleCollectionRequest ($Self, $Collection, $Request, $Representation, $outputProcessor, $Callback, $Private);
           });
         
         // Change attributes
@@ -365,7 +366,7 @@
           if (!$Resource->isWritable ())
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
-          return $Resource->setAttributes ($Attributes, function (qcREST_Interface_Resource $Self, array $Attributes, $Status) use ($Request, $Callback, $Private) {
+          return $Resource->setRepresentation ($Representation, function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation, $Status) use ($Request, $Callback, $Private) {
             // Check if the operation was successfull
             if (!$Status)
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, null, $Callback, $Private);
@@ -380,26 +381,26 @@
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
           // Retrive the attributes first
-          return $Resource->getAttributes (function (qcREST_Interface_Resource $Resource, array $currentAttributes = null) use ($Request, $Attributes, $Callback, $Private) {
+          return $Resource->getRepresentation (function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $currentRepresentation = null) use ($Request, $Representation, $Callback, $Private) {
             // Check if the attributes were retrived
-            if ($currentAttributes === null) {
+            if ($currentRepresentation === null) {
               trigger_error ('Could not retrive current attribute-set');
               
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
             }
             
-            // Update Attributes
+            // Update Representation
             $requireAttributes = false;
             
-            foreach ($Attributes as $Key=>$Value)
-              if (!$requireAttributes || isset ($currentAttributes [$Key])) {
-                $currentAttributes [$Key] = $Value;
-                unset ($Attributes [$Key]);
+            foreach ($Representation as $Key=>$Value)
+              if (!$requireAttributes || isset ($currentRepresentation [$Key])) {
+                $currentRepresentation [$Key] = $Value;
+                unset ($Representation [$Key]);
               } else
                 return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_ERROR, null, $Callback, $Private);
             
             // Try to update the resource's attributes
-            return $Resource->setAttributes ($currentAttributes, function (qcREST_Interface_Resource $Self, array $Attributes, $Status) use ($Request, $Callback, $Private) {
+            return $Resource->setRepresentation ($currentRepresentation, function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation, $Status) use ($Request, $Callback, $Private) {
               // Check if the operation was successfull
               if (!$Status)
                 return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, null, $Callback, $Private);
@@ -437,7 +438,7 @@
      * 
      * @param qcREST_Interface_Collection $Collection
      * @param qcREST_Interface_Request $Request
-     * @param array $Attributes
+     * @param qcREST_Interface_Representation $Representation (optional)
      * @param qcREST_Interface_Processor $outputProcessor
      * @param callable $Callback
      * @param mixed $Private (optional)
@@ -445,7 +446,7 @@
      * @access private
      * @return bool
      **/
-    private function handleCollectionRequest (qcREST_Interface_Resource $Resource, qcREST_Interface_Collection $Collection, qcREST_Interface_Request $Request, array $Attributes, qcREST_Interface_Processor $outputProcessor, callable $Callback, $Private = null) {
+    private function handleCollectionRequest (qcREST_Interface_Resource $Resource, qcREST_Interface_Collection $Collection, qcREST_Interface_Request $Request, qcREST_Interface_Representation $Representation = null, qcREST_Interface_Processor $outputProcessor, callable $Callback, $Private = null) {
       switch ($Request->getMethod ()) {
         // Retrive a listing of resources on this directory
         case $Request::METHOD_GET:
@@ -479,7 +480,7 @@
             $Attrs = 1;
             $finalHandler = function () use ($Resource, &$Attributes, $Request, $outputProcessor, $Callback, $Private) {
               return $outputProcessor->processOutput (
-                function (qcREST_Interface_Processor $Processor, $Output, $OutputType, $Collection, array $Attributes, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private) {
+                function (qcREST_Interface_Processor $Processor, $Output, $OutputType, $Collection, qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private) {
                   // Check if the processor returned an error
                   if ($Output === false) {
                     trigger_error ('Output-Processor failed');
@@ -497,17 +498,18 @@
                   
                   // Return the response
                   return $this->sendResponse ($Response, $Callback, $Private);
-                }, null, $Resource, $Attributes, $Request, $this
+                }, null, $Resource, new qcREST_Representation ($Attributes), $Request, $this
               );
             };
             
-            $attrHandler = function (qcREST_Interface_Resource $Resource, array $Attributes = null, $Item) use ($finalHandler, &$Attrs) {
+            $attrHandler = function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation = null, $Item) use ($finalHandler, &$Attrs) {
               // Make sure we don't overwrite special keys
-              unset ($Attributes ['name'], $Attributes ['uri'], $Attributes ['isCollection']);
+              unset ($Representation ['name'], $Representation ['uri'], $Representation ['isCollection']);
               
               // Merge the attributes
-              foreach ($Attributes as $Key=>$Value)
-                $Item->$Key = $Value;
+              if ($Representation !== null)
+                foreach ($Representation as $Key=>$Value)
+                  $Item->$Key = $Value;
               
               // Check if this is the last callback
               if (--$Attrs < 1)
@@ -520,9 +522,9 @@
               $Item->uri = $baseURI . rawurlencode ($Item->name);
               $Item->isCollection = $Child->hasChildCollection ();
               
-              if ($Child instanceof qcRest_Interface_Collection_Attributes) {
+              if ($Child instanceof qcRest_Interface_Collection_Representation) {
                 $Attrs++;
-                $Child->getCollectionAttributes ($attrHandler, $Item);
+                $Child->getCollectionRepresentation ($attrHandler, $Item);
               }
             }
             
@@ -540,7 +542,7 @@
           if (!$Collection->isWritable ())
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
-          return $Collection->createChild ($Attributes, null, function (qcREST_Interface_Collection $Self, $Name = null, qcREST_Interface_Resource $Child = null) use ($Callback, $Private, $Request) {
+          return $Collection->createChild ($Representation, null, function (qcREST_Interface_Collection $Self, $Name = null, qcREST_Interface_Resource $Child = null) use ($Callback, $Private, $Request) {
             if (!$Child)
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, null, $Callback, $Private);
             
@@ -572,12 +574,12 @@
             }
             
             // Split children up into updates and removals
-            $Create = $Attributes;
+            $Create = $Representation;
             $Updates = array ();
             
             foreach ($Children as $Child)
               // Check if the child is referenced on input-attributes
-              if (isset ($Attributes [$Name = $Child->getName ()])) {
+              if (isset ($Representation [$Name = $Child->getName ()])) {
                 // Mark the child as updated
                 $Updates [$Name] = $Child;
                 
@@ -589,7 +591,7 @@
                 $Removals [] = $Child;
             
             $func = null;
-            $func = function ($Self = null, $P1 = null, $P2 = null) use ($Request, $outputProcessor, $Resource, &$Create, &$Updates, &$Removals, &$Attributes, &$func, $Callback, $Private) {
+            $func = function ($Self = null, $P1 = null, $P2 = null) use ($Request, $outputProcessor, $Resource, &$Create, &$Updates, &$Removals, $Representation, &$func, $Callback, $Private) {
               // Check if we are returning
               if ($Self) {
                 // Check if we tried to create a child
@@ -621,14 +623,14 @@
               foreach ($Create as $Name=>$childAttributes) {
                 unset ($Create [$Name]);
                 
-                return $Resource->createChild ((array)$childAttributes, $Name, $func);
+                return $Resource->createChild (new qcREST_Representation ($childAttributes), $Name, $func);
               }
               
               // Try to update pending children
               foreach ($Updates as $Name=>$Child) {
                 unset ($Updates [$Name]);
                 
-                return $Child->setAttributes ((array)$Attributes [$Name], $func);
+                return $Child->setRepresentation (new qcREST_Representation ($Representation [$Name]), $func);
               }
               
               // Try to remove removals

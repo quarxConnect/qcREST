@@ -97,6 +97,19 @@
       if (($this->virtualBaseURI !== null) && (substr ($URI, 0, strlen ($this->virtualBaseURI) + 1) == $this->virtualBaseURI . '/'))
         $URI = substr ($URI, strlen ($this->virtualBaseURI));
       
+      // Truncate parameters
+      $Parameters = array ();
+      
+      if (($p = strpos ($URI, '?')) !== false) {
+        foreach (explode ('&', substr ($URI, $p + 1)) as $Parameter)
+          if (($pv = strpos ($Parameter, '=')) !== false)
+            $Parameters [urldecode (substr ($Parameter, 0, $pv))] = urldecode (substr ($Parameter, $pv + 1));
+          else
+            $Parameters [urldecode ($Parameter)] = true;
+        
+        $URI = substr ($URI, 0, $p);
+      }
+      
       // Check if there is a request-body
       global $HTTP_RAW_POST_DATA;
       
@@ -137,7 +150,7 @@
       } else
         $Types [] = '*/*';
       
-      return ($Request = new qcREST_Request ($URI, $Method, $Content, $ContentType, $Types));
+      return ($Request = new qcREST_Request ($URI, $Method, $Parameters, $Content, $ContentType, $Types));
     }
     // }}}
     

@@ -1,6 +1,7 @@
 <?PHP
 
   require_once ('qcREST/Resource.php');
+  require_once ('qcREST/Representation.php');
   require_once ('qcREST/Interface/Collection.php');
   
   class qcREST_Resource_Merge extends qcREST_Resource implements qcREST_Interface_Collection {
@@ -25,21 +26,21 @@
     }
     // }}}
     
-    // {{{ getAttributes
+    // {{{ getRepresentation
     /**
-     * Retrive all attributes of this resource
+     * Retrive a representation of this resource
      * 
      * @param callable $Callback A callback to fire once the operation was completed
      * @param mixed $Private (optional) Some private data to pass to the callback   
      * 
      * The callback will be raised once the operation was completed in the form of:
      *    
-     *   function (qcREST_Interface_Resource $Self, array $Attributes = null, mixed $Private) { }
+     *   function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation = null, mixed $Private) { }
      * 
      * @access public
      * @return bool  
      **/  
-    public function getAttributes (callable $Callback, $Private = null) {
+    public function getRepresentation (callable $Callback, $Private = null) {
       // Prepare the attributes
       $Counter = count ($this->Resources);
       $Attributes = array (
@@ -49,11 +50,11 @@
       
       // Check if we have to retrive attributes from our children
       if ($Counter == 0)
-        return call_user_func ($Callback, $this, $Attributes, $Private);
+        return call_user_func ($Callback, $this, new qcREST_Representation ($Attributes), $Private);
       
       // Retrive all attributes from our children
       foreach ($this->Resources as $Resource)
-        $Resource->getAttributes (function (qcREST_Interface_Resource $Resource, array $eAttributes = null) use (&$Counter, &$Attributes, $Callback, $Private) {
+        $Resource->getRepresentation (function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $eRepresentation = null) use (&$Counter, &$Attributes, $Callback, $Private) {
           // Check if there were attributes returned
           if ($eAttributes !== null) {
             // Find the right place for this resource
@@ -64,19 +65,19 @@
               $Suff++;
             
             // Push the attributes to the collection
-            $Attributes ['items'][$Name . ($Suff > 0 ? '_' . $Suff : '')] = $eAttributes;
+            $Attributes ['items'][$Name . ($Suff > 0 ? '_' . $Suff : '')] = $eRepresentation->toArray ();
           }
           
           // Check if we have finished
           if (--$Counter == 0)
-            call_user_func ($Callback, $this, $Attributes, $Private);
+            call_user_func ($Callback, $this, new qcREST_Representation ($Attributes), $Private);
         });
       
       return true;
     }
     // }}}
     
-    // {{{ iAsBrowsable
+    // {{{ isBrowsable
     /**
      * Checks if children of this directory may be discovered
      * 
@@ -297,7 +298,7 @@
     /**
      * Create a new child on this directory
      * 
-     * @param array $Attributes Attributes to create the child with
+     * @param qcREST_Interface_Representation $Representation Representation create the child from
      * @param string $Name (optional) Explicit name for the child, if none given the directory should generate a new one
      * @param callable $Callback (optional) A callback to fire once the operation was completed
      * @param mixed $Private (optional) Some private data to pass to the callback   
@@ -309,7 +310,7 @@
      * @access public
      * @return bool
      **/
-    public function createChild (array $Attributes, $Name = null, callable $Callback = null, $Private = null) {
+    public function createChild (qcREST_Interface_Representation $Representation, $Name = null, callable $Callback = null, $Private = null) {
       if ($Callback)
         return call_user_func ($Callback, $this, $Name, null, $Private);
     }
