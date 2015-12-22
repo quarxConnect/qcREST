@@ -46,9 +46,21 @@
      * if a user is authorized to access the resource!
      * 
      * @access public
-     * @return qcVCard
+     * @return qcVCard_Entity
      **/
     public function getUser ();
+    // }}}
+    
+    // {{{ setUser
+    /**
+     * Store a user-entity on this request that is belived to be authenticated from the request
+     * 
+     * @param qcVCard_Entity $User
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setUser (qcVCard_Entity $User);
     // }}}
     
     // {{{ getContentType

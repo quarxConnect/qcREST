@@ -9,6 +9,7 @@
     private $requestContent = '';
     private $requestContentType = '';
     private $acceptedContentTypes = array ();
+    private $authenticatedUser = null;
     
     // {{{ __construct
     /**
@@ -79,7 +80,23 @@
      * @access public 
      * @return qcVCard
      **/
-    public function getUser () { }
+    public function getUser () {
+      return $this->authenticatedUser;
+    }
+    // }}}
+    
+    // {{{ setUser
+    /**
+     * Store a user-entity on this request that is belived to be authenticated from the request
+     * 
+     * @param qcVCard_Entity $User
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setUser (qcVCard_Entity $User) {
+      $this->authenticatedUser = $User;
+    }
     // }}}
     
     // {{{ getContentType
