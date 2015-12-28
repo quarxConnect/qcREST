@@ -9,6 +9,7 @@
     
     // Input-Errors
     const STATUS_CLIENT_ERROR = 400;
+    const STATUS_CLIENT_UNAUTHORIZED = 401;
     const STATUS_FORMAT_MISSING = 400;
     const STATUS_FORMAT_ERROR = 400;
     const STATUS_FORMAT_UNSUPPORTED = 415;

@@ -26,6 +26,18 @@
     public function addProcessor (qcREST_Interface_Processor $Processor, array $Mimetypes = null);
     // }}}
     
+    // {{{ addAuthenticator
+    /**
+     * Register a new authenticator on this controller
+     * 
+     * @param qcREST_Interface_Authenticator $Authenticator
+     * 
+     * @access public
+     * @return bool
+     **/
+    public function addAuthenticator (qcREST_Interface_Authenticator $Authenticator);
+    // }}}
+    
     
     // {{{ getRequest
     /**

@@ -10,6 +10,7 @@
     private $requestContentType = '';
     private $acceptedContentTypes = array ();
     private $authenticatedUser = null;
+    private $Meta = array ();
     
     // {{{ __construct
     /**
@@ -18,6 +19,7 @@
      * @param string $URI The requested URI
      * @param string $Method The used request-method
      * @param array $Parameters Additional Parameters for this request
+     * @param array $Meta Meta-Data for this request
      * @param string $Content The payload from the request
      * @param string $ContentType Type of payload
      * @param array $acceptedContentTypes List of accepted content-types
@@ -25,13 +27,14 @@
      * @access friendly
      * @return void
      **/
-    function __construct ($URI, $Method, array $Parameters, $Content, $ContentType, array $acceptedContentTypes) {
+    function __construct ($URI, $Method, array $Parameters, array $Meta, $Content, $ContentType, array $acceptedContentTypes) {
       $this->requestURI = $URI;
       $this->requestMethod = $Method;
       $this->requestParameters = $Parameters;
       $this->requestContent = $Content;
       $this->requestContentType = $ContentType;
       $this->acceptedContentTypes = $acceptedContentTypes;
+      $this->Meta = $Meta;
     }
     // }}}
     
@@ -68,6 +71,24 @@
      **/
     public function getParameters () {
       return $this->requestParameters;
+    }
+    // }}}
+    
+    // {{{ getMeta
+    /**
+     * Retrive given or all meta-data from this request
+     * 
+     * @param string $Key (optional)
+     * 
+     * @access public
+     * @return mixed
+     **/
+    public function getMeta ($Key = null) {
+      if ($Key === null)
+        return $this->Meta;
+      
+      if (isset ($this->Meta [$Key]))
+        return $this->Meta [$Key];
     }
     // }}}
     

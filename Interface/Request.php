@@ -39,6 +39,18 @@
     public function getParameters ();
     // }}}
     
+    // {{{ getMeta
+    /**
+     * Retrive given or all meta-data from this request
+     * 
+     * @param string $Key (optional)
+     * 
+     * @access public
+     * @return mixed
+     **/
+    public function getMeta ($Key = null);
+    // }}}
+    
     // {{{ getUser
     /**
      * Retrive the user that was authenticated with this request

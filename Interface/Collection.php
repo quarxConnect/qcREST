@@ -76,7 +76,8 @@
      * @param qcREST_Interface_Representation $Representation Representation to create the child from
      * @param string $Name (optional) Explicit name for the child, if none given the directory should generate a new one
      * @param callable $Callback (optional) A callback to fire once the operation was completed
-     * @param mixed $Private (optional) Some private data to pass to the callback   
+     * @param mixed $Private (optional) Some private data to pass to the callback
+     * @param qcREST_Interface_Request $Request (optional) The Request that triggered this function-call
      * 
      * The callback will be raised once the operation was completed in the form of:
      * 
@@ -85,7 +86,7 @@
      * @access public
      * @return bool
      **/
-    public function createChild (qcREST_Interface_Representation $Representation, $Name = null, callable $Callback = null, $Private = null);
+    public function createChild (qcREST_Interface_Representation $Representation, $Name = null, callable $Callback = null, $Private = null, qcREST_Interface_Request $Request = null);
     // }}}
     
     // {{{ remove  

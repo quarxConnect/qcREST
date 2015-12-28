@@ -150,7 +150,13 @@
       } else
         $Types [] = '*/*';
       
-      return ($Request = new qcREST_Request ($URI, $Method, $Parameters, $Content, $ContentType, $Types));
+      // Prepare meta-data
+      $Meta = apache_request_headers ();
+      
+      if (!isset ($Meta ['Authorization']) && isset ($_SERVER ['PHP_AUTH_USER']))
+        $Meta ['Authorization'] = 'Basic ' . base64_encode ($_SERVER ['PHP_AUTH_USER'] . ':' . (isset ($_SERVER ['PHP_AUTH_PW']) ? $_SERVER ['PHP_AUTH_PW'] : ''));
+      
+      return ($Request = new qcREST_Request ($URI, $Method, $Parameters, $Meta, $Content, $ContentType, $Types));
     }
     // }}}
     
@@ -200,7 +206,7 @@
       
       $Content = $Response->getContent ();
       
-      # header ('Content-Length: ' . strlen ($Content));
+      header ('Content-Length: ' . strlen ($Content));
       
       echo $Content;
       
