@@ -40,10 +40,12 @@
     /**
      * Checks if this resource's attributes might be forwarded to the client
      * 
+     * @param qcVCard_Entity $User (optional)
+     * 
      * @access public
      * @return bool
      **/
-    public function isReadable () {
+    public function isReadable (qcVCard_Entity $User = null) {
       return $this->Readable;
     }
     // }}}
@@ -55,7 +57,7 @@
      * @access public 
      * @return bool
      **/
-    public function isWritable () {
+    public function isWritable (qcVCard_Entity $User = null) {
       return $this->Writable;
     }
     // }}}
@@ -67,7 +69,7 @@
      * @access public
      * @return bool
      **/
-    public function isRemovable () {
+    public function isRemovable (qcVCard_Entity $User = null) {
       return $this->Removable;
     }
     // }}}

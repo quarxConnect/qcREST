@@ -446,7 +446,7 @@
         // Generate a normal representation of that resource
         case $Request::METHOD_GET:
           // Make sure this is allowed
-          if (!$Resource->isReadable ())
+          if (!$Resource->isReadable ($Request->getUser ()))
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
           // Retrive the attributes
@@ -474,7 +474,7 @@
         // Change attributes
         case $Request::METHOD_PUT:
           // Make sure this is allowed  
-          if (!$Resource->isWritable ())
+          if (!$Resource->isWritable ($Request->getUser ()))
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
           return $Resource->setRepresentation ($Representation, function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation, $Status) use ($Request, $Callback, $Private) {
@@ -488,7 +488,7 @@
           
         case $Request::METHOD_PATCH:
           // Make sure this is allowed
-          if (!$Resource->isWritable ())
+          if (!$Resource->isWritable ($Request->getUser ()))
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
           // Retrive the attributes first
@@ -524,7 +524,7 @@
         // Remove this resource
         case $Request::METHOD_DELETE:
           // Make sure this is allowed
-          if (!$Resource->isRemovable ())
+          if (!$Resource->isRemovable ($Request->getUser ()))
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
           return $Resource->remove (function (qcREST_Interface_Resource $Self, $Status) use ($Request, $Callback, $Private) {
@@ -562,7 +562,7 @@
         // Retrive a listing of resources on this directory
         case $Request::METHOD_GET:
           // Make sure we may list the contents
-          if (!$Collection->isBrowsable ())
+          if (!$Collection->isBrowsable ($Request->getUser ()))
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
           // Request the children of this resource
@@ -630,7 +630,7 @@
         // Create a new resource on this directory
         case $Request::METHOD_POST:
           // Make sure this is allowed
-          if (!$Collection->isWritable ())
+          if (!$Collection->isWritable ($Request->getUser ()))
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
           return $Collection->createChild ($Representation, null, function (qcREST_Interface_Collection $Self, $Name = null, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null) use ($outputProcessor, $Callback, $Private, $Request, $Resource) {
@@ -670,7 +670,7 @@
           
         case $Request::METHOD_PATCH:
           // Make sure this is allowed
-          if (!$Collection->isWritable ())
+          if (!$Collection->isWritable ($Request->getUser ()))
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
           // Just check if we are in patch-mode ;-)
@@ -765,7 +765,7 @@
         // Delete the entire collection
         case $Request::METHOD_DELETE:
           // Make sure this is allowed
-          if (!$Collection->isRemovable ())
+          if (!$Collection->isRemovable ($Request->getUser ()))
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
           return $Collection->remove (function (qcREST_Interface_Resource $Self, $Status) use ($Request, $Callback, $Private) {

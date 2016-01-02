@@ -177,8 +177,8 @@
      **/
     public function setResponse (qcREST_Interface_Response $Response, callable $Callback = null, $Private = null) {
       // Make sure there is no output buffered
-      #while (ob_get_level () > 0)
-      #  ob_end_clean ();
+      while (ob_get_level () > 0)
+        ob_end_clean ();
       
       // Generate output
       $Status = true;
@@ -192,6 +192,7 @@
         qcREST_Interface_Response::STATUS_FORMAT_REJECTED => 'Input-Format was rejected by the resource',
         qcREST_Interface_Response::STATUS_NO_FORMAT => 'No processor for the requested output-format was found',
         # qcREST_Interface_Response::STATUS_UNNAMED_CHILD_ERROR => '',
+        qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED => 'You need to authenticate',
         qcREST_Interface_Response::STATUS_UNSUPPORTED => 'Operation is not supported',
         qcREST_Interface_Response::STATUS_ERROR => 'An internal error happened',
       );
@@ -201,7 +202,7 @@
       
       header ('HTTP/1.1 ' . ($Code = $Response->getStatus ()) . (isset ($sMap [$Code]) ? ' ' . $sMap [$Code] : ''));
       header ('Status: ' . $Code . (isset ($sMap [$Code]) ? ' ' . $sMap [$Code] : ''));
-      header ('X-Powered-By: qcREST/0.1 for CGI');
+      header ('X-Powered-By: qcREST/0.2 for CGI');
       header ('Content-Type: ' . $Response->getContentType ());
       
       $Content = $Response->getContent ();
