@@ -213,18 +213,18 @@
       if (!$this->Root)
         return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_SERVER_ERROR, null, $Callback, $Private);
       
-      // Try to resolve to a resource
-      return $this->resolveURI ($Request->getURI (), function (qcREST_Interface_Controller $Self, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null) use ($Request, $Callback, $Private) {
-        // Try to authenticate the request
-        return $this->authenticateRequest ($Request, $Resource, $Collection, function (qcREST_Interface_Controller $Self, qcREST_Interface_Request $Request, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null, $Status, qcVCard_Entity $User = null) use ($Callback, $Private) {
-          // Stop if authentication failed
-          if ($Status === false)
-            return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED, null, $Callback, $Private);
-          
-          // Forward the authenticated user to Request
-          if ($User !== null)
-            $Request->setUser ($User);
-          
+      // Try to authenticate the request
+      return $this->authenticateRequest ($Request, function (qcREST_Interface_Controller $Self, qcREST_Interface_Request $Request, $Status, qcVCard_Entity $User = null) use ($Callback, $Private) {
+        // Stop if authentication failed
+        if ($Status === false)
+          return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED, null, $Callback, $Private);
+        
+        // Forward the authenticated user to Request
+        if ($User !== null)
+          $Request->setUser ($User);
+        
+        // Try to resolve to a resource
+        return $this->resolveURI ($Request->getURI (), function (qcREST_Interface_Controller $Self, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null) use ($Request, $Callback, $Private) {
           // Check if there is a request-body
           if (($cType = $Request->getContentType ()) !== null) {
             // Make sure we have a processor for this
@@ -243,10 +243,10 @@
           if (!is_object ($outputProcessor))
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NO_FORMAT, null, $Callback, $Private);
           
-          // Try to parse the request-body
-          if ($inputProcessor) {
-            // Check if we should expect a request-body
-            if (!in_array ($Request->getMethod (), array (qcREST_Interface_Request::METHOD_POST, qcREST_Interface_Request::METHOD_PUT, qcREST_Interface_Request::METHOD_PATCH)))
+          // Check if we should expect a request-body
+          if (in_array ($Request->getMethod (), array (qcREST_Interface_Request::METHOD_POST, qcREST_Interface_Request::METHOD_PUT, qcREST_Interface_Request::METHOD_PATCH))) {
+            // Make sure we have an input-processor
+            if (!$inputProcessor)
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_ERROR, null, $Callback, $Private);
             
             // Make sure the request-body is present
@@ -280,8 +280,8 @@
           
           // Return if the resolver did not find anything
           return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_FOUND, null, $Callback, $Private);
-        }); // authenticateRequest()
-      }); // resolveURI()
+        }, null, $Request); // resolveURI()
+      }); // authenticateRequest()
     }
     // }}}
     
@@ -306,7 +306,7 @@
      * @access private
      * @return void
      **/
-    private function resolveURI ($URI, callable $Callback, $Private = null) {
+    private function resolveURI ($URI, callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
       // Make sure we have a root assigned
       if ($this->Root === null)
         return call_user_func ($Callback, $this, null, null, $Private);
@@ -321,10 +321,10 @@
       
       for ($i = 0; $i < $lPath; $i++)
         if (($i == 0) || ($i == $lPath - 1) || (strlen ($iPath [$i]) > 0))
-          $Path [] = $iPath [$i];
+          $Path [] = rawurldecode ($iPath [$i]);
       
       $rFunc = null;
-      $rFunc = function ($Self, $P1, $P2) use ($Callback, $Private, &$Path, &$rFunc) {
+      $rFunc = function ($Self, $P1, $P2) use ($Callback, $Private, $Request, &$Path, &$rFunc) {
         // We got a child-collection
         if ($P1 instanceof qcREST_Interface_Collection) {
           // Check wheter to lookup a further child
@@ -332,7 +332,7 @@
             return call_user_func ($Callback, $this, $Self, $P1, $Private);
           
           // Try to lookup the next child
-          return $P1->getChild (array_shift ($Path), $rFunc);
+          return $P1->getChild (array_shift ($Path), $rFunc, null, $Request);
           
         // A child of a collection was returned
         } elseif ($P2 instanceof qcREST_Interface_Resource) {
@@ -386,14 +386,12 @@
      * Try to authenticate a given request
      * 
      * @param qcREST_Interface_Request $Request
-     * @param qcREST_Interface_Resource $Resource (optional)
-     * @param qcREST_Interface_Collection $Collection (optional)
      * @param callable $Callback
      * @param mixed $Private (optional)
      * 
      * The callback will be raised in the form of
      * 
-     *   function (qcREST_Interface_Controller $Self, qcREST_Interface_Request $Request, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null, bool $Status, qcVCard_Entity $User = null, mixed $Private = null) { }
+     *   function (qcREST_Interface_Controller $Self, qcREST_Interface_Request $Request, bool $Status, qcVCard_Entity $User = null, mixed $Private = null) { }
      * 
      * $Status indicated wheter the request should be processed or not,
      * $User may contain an user-entity that was identified for the request
@@ -401,26 +399,26 @@
      * @access private
      * @return void
      **/
-    private function authenticateRequest (qcREST_Interface_Request $Request, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null, callable $Callback, $Private = null) {
+    private function authenticateRequest (qcREST_Interface_Request $Request, callable $Callback, $Private = null) {
       // Check if there are authenticators to process
       if (count ($this->Authenticators) == 0)
-        return call_user_func ($Callback, $this, $Request, $Resource, $Collection, true, null, $Private);
+        return call_user_func ($Callback, $this, $Request, true, null, $Private);
       
       $Authenticators = $this->Authenticators;
       $Handler = null;
-      $Handler = function (qcREST_Interface_Authenticator $Self = null, qcREST_Interface_Request $Request = null, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null, $Status = null, qcVCard_Entity $User = null) use ($Request, $Resource, $Collection, $Callback, $Private, &$Handler, &$Authenticators) {
+      $Handler = function (qcREST_Interface_Authenticator $Self = null, qcREST_Interface_Request $Request = null, $Status = null, qcVCard_Entity $User = null) use ($Request, $Callback, $Private, &$Handler, &$Authenticators) {
         // Check the result
         if (($Self !== null) && ($Status !== null))
-          return call_user_func ($Callback, $this, $Request, $Resource, $Collection, !!$Status, $User, $Private);
+          return call_user_func ($Callback, $this, $Request, !!$Status, $User, $Private);
         
         // Check if we are done
         if (count ($Authenticators) == 0)
-          return call_user_func ($Callback, $this, $Request, $Resource, $Collection, true, null, $Private);
+          return call_user_func ($Callback, $this, $Request, true, null, $Private);
         
         // Move to next authenticator
         $Next = array_shift ($Authenticators);
         
-        return $Next->authenticateRequest ($Request, $Resource, $Collection, $Handler);
+        return $Next->authenticateRequest ($Request, $Handler);
       };
       
       call_user_func ($Handler);
@@ -517,7 +515,7 @@
                 return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, null, $Callback, $Private);
               
               # TODO: Return representation here?
-              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_OK, null, $Callback, $Private);
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_STORED, null, $Callback, $Private);
             });
           });
         
@@ -562,8 +560,12 @@
         // Retrive a listing of resources on this directory
         case $Request::METHOD_GET:
           // Make sure we may list the contents
-          if (!$Collection->isBrowsable ($Request->getUser ()))
+          if (($rc = $Collection->isBrowsable ($Request->getUser ())) !== true) {
+            if (($rc === null) && ($Request->getUser () === null))
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+            
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
+          }
           
           // Request the children of this resource
           return $Collection->getChildren (function (qcREST_Interface_Collection $Collection, array $Children = null) use ($Request, $Resource, $outputProcessor, $Callback, $Private) {
@@ -625,7 +627,7 @@
             $Attrs--;
             
             return;
-          });
+          }, null, $Request);
         
         // Create a new resource on this directory
         case $Request::METHOD_POST:
@@ -660,7 +662,15 @@
             if ($Representation)
               return $this->handleRepresentation ($Request, $Child, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_CREATED, array ('Location' => $URI), $Callback, $Private);
             
-            return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CREATED, array ('Location' => $URI), $Callback, $Private);
+            return $Child->getRepresentation (function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation = null) use ($outputProcessor, $Request, $URI, $Callback, $Private) {
+              // Check if we retrive a representation for this
+              if (!$Representation)
+                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CREATED, array ('Location' => $URI), $Callback, $Private);
+              
+              return $this->handleRepresentation ($Request, $Resource, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_CREATED, array ('Location' => $URI), $Callback, $Private);
+            });
+            
+            # return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CREATED, array ('Location' => $URI), $Callback, $Private);
           }, null, $Request);
         
         // Replace all resources on this directory (PUT) with new ones or just add a new set (PATCH)
@@ -760,7 +770,7 @@
             
             // Dispatch to update-function
             return call_user_func ($func);
-          });
+          }, null, $Request);
         
         // Delete the entire collection
         case $Request::METHOD_DELETE:
@@ -880,7 +890,26 @@
      * @return void
      **/
     private function respondStatus (qcREST_Interface_Request $Request, $Status, array $Meta = null, callable $Callback, $Private = null) {
-      return $this->sendResponse (new qcREST_Response ($Request, $Status, '', '', is_array ($Meta) ? $Meta : array ()), $Callback, $Private);
+      // Make sure meta is valid
+      if ($Meta === null)
+        $Meta = array ();
+      
+      // Append some meta for unauthenticated status
+      if ($Status == qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED) {
+        if (isset ($Meta ['WWW-Authenticate']))
+          $Schemes = (is_array ($Meta ['WWW-Authenticate']) ? $Meta ['WWW-Authenticate'] : array ($Meta ['WWW-Authenticate']));
+        else
+          $Schemes = array ();
+        
+        foreach ($this->Authenticators as $Authenticator)
+          foreach ($Authenticator->getSchemes () as $aScheme) 
+            if (isset ($aScheme ['scheme']))
+              $Schemes [] = $aScheme ['scheme'] . ' realm="' . (isset ($aScheme ['realm']) ? $aScheme ['realm'] : get_class ($Authenticator)) . '"';
+        
+        $Meta ['WWW-Authenticate'] = $Schemes;
+      }
+      
+      return $this->sendResponse (new qcREST_Response ($Request, $Status, '', '', $Meta), $Callback, $Private);
     }
     // }}}
   }

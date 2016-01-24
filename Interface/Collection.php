@@ -46,6 +46,7 @@
      * 
      * @param callable $Callback A callback to fire once the operation was completed
      * @param mixed $Private (optional) Some private data to pass to the callback
+     * @param qcREST_Interface_Request $Request (optional) The Request that triggered this function-call
      * 
      * The callback will be raised once the operation was completed in the form of:
      * 
@@ -54,7 +55,7 @@
      * @access public
      * @return bool
      **/
-    public function getChildren (callable $Callback, $Private = null);
+    public function getChildren (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null);
     // }}}
     
     // {{{ getChild
@@ -64,6 +65,7 @@
      * @param string $Name Name of the child to return
      * @param callable $Callback A callback to fire once the operation was completed
      * @param mixed $Private (optional) Some private data to pass to the callback
+     * @param qcREST_Interface_Request $Request (optional) The Request that triggered this function-call
      * 
      * The callback will be raised once the operation was completed in the form of:
      * 
@@ -72,7 +74,7 @@
      * @access public
      * @return bool
      **/
-    public function getChild ($Name, callable $Callback, $Private = null);
+    public function getChild ($Name, callable $Callback, $Private = null, qcREST_Interface_Request $Request = null);
     // }}}
     
     // {{{ createChild

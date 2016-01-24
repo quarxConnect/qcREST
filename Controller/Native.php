@@ -116,6 +116,9 @@
       if (isset ($_SERVER ['CONTENT_LENGTH']) && ($_SERVER ['CONTENT_LENGTH'] > 0)) {
         $Content = (isset ($HTTP_RAW_POST_DATA) ? $HTTP_RAW_POST_DATA : file_get_contents ('php://input'));
         $ContentType = $_SERVER ['CONTENT_TYPE'];
+        
+        if (($p = strpos ($ContentType, ';')) !== false)
+          $ContentType = substr ($ContentType, 0, $p);
       } else
         $Content = $ContentType = null;
       
@@ -192,13 +195,18 @@
         qcREST_Interface_Response::STATUS_FORMAT_REJECTED => 'Input-Format was rejected by the resource',
         qcREST_Interface_Response::STATUS_NO_FORMAT => 'No processor for the requested output-format was found',
         # qcREST_Interface_Response::STATUS_UNNAMED_CHILD_ERROR => '',
-        qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED => 'You need to authenticate',
+        qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED => 'You need to authenticate',
+        qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED => 'You are not authorized to access this resource',
         qcREST_Interface_Response::STATUS_UNSUPPORTED => 'Operation is not supported',
         qcREST_Interface_Response::STATUS_ERROR => 'An internal error happened',
       );
       
       foreach ($Response->getMeta ()  as $Key=>$Value)
-        header ($Key. ': ' . $Value);
+        if (is_array ($Value))
+          foreach ($Value as $Val)
+            header ($Key . ': ' . $Val, false);
+        else
+          header ($Key. ': ' . $Value);
       
       header ('HTTP/1.1 ' . ($Code = $Response->getStatus ()) . (isset ($sMap [$Code]) ? ' ' . $sMap [$Code] : ''));
       header ('Status: ' . $Code . (isset ($sMap [$Code]) ? ' ' . $sMap [$Code] : ''));

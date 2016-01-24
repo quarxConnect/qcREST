@@ -3,12 +3,14 @@
   interface qcREST_Interface_Response {
     const STATUS_OK = 200;
     const STATUS_CREATED = 201;
+    const STATUS_STORED = 204;
     
     const STATUS_NOT_FOUND = 404;
     const STATUS_NOT_ALLOWED = 405;
     
     // Input-Errors
     const STATUS_CLIENT_ERROR = 400;
+    const STATUS_CLIENT_UNAUTHENTICATED = 401;
     const STATUS_CLIENT_UNAUTHORIZED = 401;
     const STATUS_FORMAT_MISSING = 400;
     const STATUS_FORMAT_ERROR = 400;
