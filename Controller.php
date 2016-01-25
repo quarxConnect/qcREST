@@ -592,11 +592,12 @@
             
             $Attrs = 1;
             $Items = array ();
+            $Name = $Collection->getNameAttribute ();
             
             foreach ($Children as $Child) {
               $Items [] = $Item = new stdClass;
-              $Item->name = $Child->getName ();
-              $Item->uri = $baseURI . rawurlencode ($Item->name);
+              $Item->$Name = $Child->getName ();
+              $Item->uri = $baseURI . rawurlencode ($Item->$Name);
               $Item->isCollection = $Child->hasChildCollection ();
               
               if ($Child instanceof qcRest_Interface_Collection_Representation) {
@@ -604,7 +605,7 @@
                 $Child->getCollectionRepresentation (
                   function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation = null) use (&$Attrs, $Item) {
                     // Make sure we don't overwrite special keys
-                    unset ($Representation ['name'], $Representation ['uri'], $Representation ['isCollection']);
+                    unset ($Representation [$Name], $Representation ['uri'], $Representation ['isCollection']);
                     
                     // Merge the attributes
                     if ($Representation !== null)

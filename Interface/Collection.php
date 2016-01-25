@@ -40,6 +40,17 @@
     // }}}
     
     
+    // {{{ getNameAttribute
+    /**
+     * Retrive the name of the name-attribute
+     * The name-attribute is used on listings to output the name of each child
+     * 
+     * @access public
+     * @return string
+     **/
+    public function getNameAttribute ();
+    // }}}
+    
     // {{{ getChildren
     /**
      * Retrive all children on this directory

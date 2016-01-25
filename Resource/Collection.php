@@ -112,6 +112,19 @@
     }
     // }}}
     
+    // {{{ getNameAttribute
+    /**
+     * Retrive the name of the name-attribute
+     * The name-attribute is used on listings to output the name of each child
+     * 
+     * @access public
+     * @return string
+     **/
+    public function getNameAttribute () {
+      return 'name';
+    }
+    // }}}
+    
     protected function getChildrenS () {
       return $this->Children;
     }
