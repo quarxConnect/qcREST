@@ -44,7 +44,7 @@
       $lP = strlen ($scriptPath);
       $lN = strlen ($scriptName);
       
-      $Prefix = 'http' . (isset ($_SERVER ['HTTPS']) ? 's' : '') . '://' . $_SERVER ['SERVER_NAME'] . ($_SERVER ['SERVER_PORT'] != (isset ($_SERVER ['HTTPS']) ? 443 : 80) ? ':' . $_SERVER ['SERVER_PORT'] : '');
+      $Prefix = 'http' . (isset ($_SERVER ['HTTPS']) ? 's' : '') . '://' . $_SERVER ['HTTP_HOST'] . ($_SERVER ['SERVER_PORT'] != (isset ($_SERVER ['HTTPS']) ? 443 : 80) ? ':' . $_SERVER ['SERVER_PORT'] : '');
       
       if (($lP > 1) && (substr ($URI, 0, $lP) == $scriptPath)) {
         if (substr ($URI, $lP + 1, $lN) == $scriptName)
