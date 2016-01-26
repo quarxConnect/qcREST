@@ -51,6 +51,18 @@
     public function getNameAttribute ();
     // }}}
     
+    // {{{ getChildFullRepresenation
+    /**
+     * Check wheter full representation of children should be shown on listings
+     * 
+     * @remark This function is optional and need not to be implemented, the controller will check on his own wheter this is usable
+     * 
+     * @access public
+     * @return bool
+     **/
+    # public function getChildFullRepresenation ();
+    // }}}
+    
     // {{{ getChildren
     /**
      * Retrive all children on this directory

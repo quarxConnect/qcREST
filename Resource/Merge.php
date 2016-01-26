@@ -81,10 +81,12 @@
     /**
      * Checks if children of this directory may be discovered
      * 
+     * @param qcVCard_Entity $User (optional)
+     * 
      * @access public
      * @return bool
      **/
-    public function isBrowsable () {
+    public function isBrowsable (qcVCard_Entity $User = null) {
       return true;
     }
     // }}}
@@ -152,12 +154,26 @@
     }
     // }}}
     
+    // {{{ getNameAttribute
+    /** 
+     * Retrive the name of the name-attribute
+     * The name-attribute is used on listings to output the name of each child
+     * 
+     * @access public 
+     * @return string
+     **/
+    public function getNameAttribute () {
+      return 'name';
+    }
+    // }}}
+    
     // {{{ getChildren
     /**
      * Retrive all children on this directory
      * 
      * @param callable $Callback A callback to fire once the operation was completed
      * @param mixed $Private (optional) Some private data to pass to the callback
+     * @param qcREST_Interface_Request $Request (optional) The Request that triggered this function-call
      * 
      * The callback will be raised once the operation was completed in the form of:
      * 
@@ -166,7 +182,7 @@
      * @access public
      * @return bool
      **/
-    public function getChildren (callable $Callback, $Private = null) {
+    public function getChildren (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
       // Check if we have any entities assigned
       if (($Counter = count ($this->Resources)) == 0)
         return call_user_func ($Callback, $this, null, $Private);
@@ -258,6 +274,7 @@
      * @param string $Name Name of the child to return
      * @param callable $Callback A callback to fire once the operation was completed
      * @param mixed $Private (optional) Some private data to pass to the callback
+     * @param qcREST_Interface_Request $Request (optional) The Request that triggered this function-call
      * 
      * The callback will be raised once the operation was completed in the form of:
      * 
@@ -266,7 +283,7 @@
      * @access public
      * @return bool
      **/
-    public function getChild ($Name, callable $Callback, $Private = null) {
+    public function getChild ($Name, callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
       # TODO: Speed this up
       return $this->getChildren (function (qcREST_Interface_Collection $Self, array $Resources = null) use ($Name, $Callback, $Private) {
         // Check if the call was successfull
@@ -302,6 +319,7 @@
      * @param string $Name (optional) Explicit name for the child, if none given the directory should generate a new one
      * @param callable $Callback (optional) A callback to fire once the operation was completed
      * @param mixed $Private (optional) Some private data to pass to the callback   
+     * @param qcREST_Interface_Request $Request (optional) The Request that triggered this function-call
      * 
      * The callback will be raised once the operation was completed in the form of:
      * 
@@ -310,7 +328,7 @@
      * @access public
      * @return bool
      **/
-    public function createChild (qcREST_Interface_Representation $Representation, $Name = null, callable $Callback = null, $Private = null) {
+    public function createChild (qcREST_Interface_Representation $Representation, $Name = null, callable $Callback = null, $Private = null, qcREST_Interface_Request $Request = null) {
       if ($Callback)
         return call_user_func ($Callback, $this, $Name, null, null, $Private);
     }

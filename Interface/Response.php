@@ -4,6 +4,7 @@
     const STATUS_OK = 200;
     const STATUS_CREATED = 201;
     const STATUS_STORED = 204;
+    const STATUS_REMOVED = 204;
     
     const STATUS_NOT_FOUND = 404;
     const STATUS_NOT_ALLOWED = 405;

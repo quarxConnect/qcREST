@@ -529,7 +529,7 @@
             if (!$Status)
               trigger_error ('Resource could not be removed');
             
-            return $this->respondStatus ($Request, ($Status ? qcREST_Interface_Response::STATUS_OK : qcREST_Interface_Response::STATUS_ERROR), null, $Callback, $Private);
+            return $this->respondStatus ($Request, ($Status ? qcREST_Interface_Response::STATUS_REMOVED : qcREST_Interface_Response::STATUS_ERROR), null, $Callback, $Private);
           });
       }
       
@@ -594,22 +594,28 @@
             $Items = array ();
             $Name = $Collection->getNameAttribute ();
             
+            if (is_callable (array ($Collection, 'getChildFullRepresenation')))
+              $Extend = $Collection->getChildFullRepresenation ();
+            else
+              $Extend = false;
+            
             foreach ($Children as $Child) {
               $Items [] = $Item = new stdClass;
               $Item->$Name = $Child->getName ();
               $Item->uri = $baseURI . rawurlencode ($Item->$Name);
               $Item->isCollection = $Child->hasChildCollection ();
               
-              if ($Child instanceof qcRest_Interface_Collection_Representation) {
+              if (($Child instanceof qcRest_Interface_Collection_Representation) || $Extend) {
                 $Attrs++;
-                $Child->getCollectionRepresentation (
-                  function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation = null) use (&$Attrs, $Item) {
+                call_user_func (
+                  array ($Child, ($Child instanceof qcRest_Interface_Collection_Representation ? 'getCollectionRepresentation' : 'getRepresentation')),
+                  function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $rRepresentation = null) use (&$Attrs, $Item, $Name, $Request, $Representation, $outputProcessor, $Callback, $Private) {
                     // Make sure we don't overwrite special keys
-                    unset ($Representation [$Name], $Representation ['uri'], $Representation ['isCollection']);
+                    unset ($rRepresentation [$Name], $rRepresentation ['uri'], $rRepresentation ['isCollection']);
                     
                     // Merge the attributes
-                    if ($Representation !== null)
-                      foreach ($Representation as $Key=>$Value)
+                    if ($rRepresentation !== null)
+                      foreach ($rRepresentation as $Key=>$Value)
                         $Item->$Key = $Value;
                     
                     // Check if this is the last callback
