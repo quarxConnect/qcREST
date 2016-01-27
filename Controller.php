@@ -660,7 +660,10 @@
                   $Keys = array ();
                   
                   foreach ($Items as $Item) {
-                    $Key = $Item->$Sort;
+                    if (isset ($Item->$Sort))
+                      $Key = $Item->$Sort;
+                    else
+                      $Key = ' ';
                     
                     if (isset ($Keys [$Key]))
                       $Keys [$Key][] = $Item;
