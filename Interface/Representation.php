@@ -35,6 +35,18 @@
     public function allowRedirect ($SetRedirect = null);
     // }}}
     
+    // {{{ getMeta
+    /**
+     * Retrive all or a specific meta from this representation
+     * 
+     * @param string $Key (optional) Name of meta-information
+     * 
+     * @access public
+     * @return mixed
+     **/
+    public function getMeta ($Key = null);
+    // }}}
+    
     // {{{ addMeta
     /**
      * Register a meta-value for this representation

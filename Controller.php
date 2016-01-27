@@ -588,52 +588,160 @@
             // Create a listing
             $Representation = new qcREST_Representation (array (
               'type' => 'listing',
+              'total' => count ($Children),
             ));
             
-            $Attrs = 1;
-            $Items = array ();
-            $Name = $Collection->getNameAttribute ();
+            // Handle pagination
+            $rParams = $Request->getParameters ();
+            $Pos = 0;
+            $First = 0; 
+            $Last = count ($Children);
+            $Sort = $Order = $Search = false;
             
+            if (isset ($rParams ['offset']) && ($rParams ['offset'] !== null)) {
+              $Representation->addMeta ('X-Performance-Warning', 'Using pagination without support on backend');
+              $First = (int)$rParams ['offset'];
+            }
+            
+            if (isset ($rParams ['limit']) && ($rParams ['limit'] !== null)) {
+              $Representation->addMeta ('X-Performance-Warning', 'Using pagination without support on backend');
+              $Last = $First + (int)$rParams ['limit'];
+            }
+            
+            if (isset ($rParams ['sort']) && ($rParams ['sort'] !== null)) {
+              $Sort = $rParams ['sort'];
+              
+              if (isset ($rParams ['order']) && (strcasecmp ($rParams ['order'], 'DESC') == 0))
+                $Order = 'DESC';
+              else
+                $Order = 'ASC';
+            }
+            
+            if (isset ($rParams ['search']) && (strlen ($rParams ['search']) > 0))
+              $Search = strval ($rParams ['search']);
+            
+            # TODO: Add support for sort and order
+            
+            // Prepare finalizer
+            $Calls = 1;
+     
+            $Finalize = function () use (&$Calls, $Request, $Resource, $Representation, $outputProcessor, $Callback, $Private, $First, $Last, $Search, $Sort, $Order) {
+              // Check if there are calls pending
+              if (--$Calls > 0)
+                return;
+              
+              // Check if we have to apply anything
+              if ($Search || $Sort) {
+                // Access the items
+                $Items = $Representation ['items'];
+                
+                // Apply search-filter onto the result
+                if ($Search) {
+                  $Representation->addMeta ('X-Performance-Warning', 'Using search without support on backend');
+                  
+                  // Filter the items
+                  foreach ($Items as $ID=>$Item) {
+                    foreach ($Item as $Key=>$Value)
+                      if (stripos ($Value, $Search) !== false)
+                        continue (2);
+                    
+                    unset ($Items [$ID]);
+                  }
+                  
+                  // Update the total-counter
+                  $Representation ['total'] = count ($Items);
+                }
+                
+                // Apply sort-filter onto the result
+                if ($Sort) {
+                  $Representation->addMeta ('X-Performance-Warning', 'Using sort without support on backend');
+                  
+                  // Generate an index
+                  $Keys = array ();
+                  
+                  foreach ($Items as $Item) {
+                    $Key = $Item->$Sort;
+                    
+                    if (isset ($Keys [$Key]))
+                      $Keys [$Key][] = $Item;
+                    else
+                      $Keys [$Key] = array ($Item);
+                  }
+                  
+                  // Sort the index
+                  if ($Order == 'DESC')
+                    krsort ($Keys);
+                  else
+                    ksort ($Keys);
+                  
+                  // Push back the result
+                  $Items = array ();
+                  
+                  foreach ($Keys as $Itms)
+                    $Items = array_merge ($Items, $Itms);
+                }
+                
+                // Push back the items
+                $Representation ['items'] = array_slice ($Items, $First, $Last - $First);
+              }
+              
+              // Raise the final callback
+              return $this->handleRepresentation ($Request, $Resource, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, array ('X-Resource-Type' => 'Collection'), $Callback, $Private);
+            };
+            
+            // Determine how to present children on the listing
             if (is_callable (array ($Collection, 'getChildFullRepresenation')))
               $Extend = $Collection->getChildFullRepresenation ();
             else
               $Extend = false;
             
+            // Append children to the listing
+            $Name = $Collection->getNameAttribute ();
+            $Items = array ();
+            
             foreach ($Children as $Child) {
+              // Check if we may skip the generation of this child
+              if (!($Sort || $Search)) {
+                if ($Pos++ < $First)
+                  continue;
+                elseif ($Pos > $Last)
+                  break;
+              }
+              
+              // Create basic structures
               $Items [] = $Item = new stdClass;
               $Item->$Name = $Child->getName ();
               $Item->uri = $baseURI . rawurlencode ($Item->$Name);
               $Item->isCollection = $Child->hasChildCollection ();
               
-              if (($Child instanceof qcRest_Interface_Collection_Representation) || $Extend) {
-                $Attrs++;
-                call_user_func (
-                  array ($Child, ($Child instanceof qcRest_Interface_Collection_Representation ? 'getCollectionRepresentation' : 'getRepresentation')),
-                  function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $rRepresentation = null) use (&$Attrs, $Item, $Name, $Request, $Representation, $outputProcessor, $Callback, $Private) {
-                    // Make sure we don't overwrite special keys
-                    unset ($rRepresentation [$Name], $rRepresentation ['uri'], $rRepresentation ['isCollection']);
-                    
-                    // Merge the attributes
-                    if ($rRepresentation !== null)
-                      foreach ($rRepresentation as $Key=>$Value)
-                        $Item->$Key = $Value;
-                    
-                    // Check if this is the last callback
-                    if (--$Attrs < 1)
-                      $this->handleRepresentation ($Request, $Resource, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, array ('X-Resource-Type' => 'Collection'), $Callback, $Private);
-                  }
-                );
-              }
+              // Check wheter to expand the child
+              if (!(($Aware = ($Child instanceof qcRest_Interface_Collection_Representation)) || $Extend))
+                continue;
+              
+              // Expand the child
+              $Calls++;
+              call_user_func (
+                array ($Child, ($Aware ? 'getCollectionRepresentation' : 'getRepresentation')),
+                function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $rRepresentation = null) use ($Item, $Name, $Finalize) {
+                  // Make sure we don't overwrite special keys
+                  unset ($rRepresentation [$Name], $rRepresentation ['uri'], $rRepresentation ['isCollection']);
+                  
+                  // Merge the attributes
+                  if ($rRepresentation !== null)
+                    foreach ($rRepresentation as $Key=>$Value)
+                      $Item->$Key = $Value;
+                  
+                  // Try to finalize
+                  call_user_func ($Finalize);
+                }
+              );
             }
             
+            // Store the children on the representation
             $Representation ['items'] = $Items;
             
-            if ($Attrs == 1)
-              return $this->handleRepresentation ($Request, $Resource, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, array ('X-Resource-Type' => 'Collection'), $Callback, $Private);
-            
-            $Attrs--;
-            
-            return;
+            // Try to finalize
+            return call_user_func ($Finalize);
           }, null, $Request);
         
         // Create a new resource on this directory
@@ -829,7 +937,9 @@
       
       // Make sure meta is an array
       if (!is_array ($Meta))
-        $Meta = array ();
+        $Meta = $Representation->getMeta ();
+      else
+        $Meta = array_merge ($Representation->getMeta (), $Meta);
       
       // Remove any redirects if unwanted
       if (isset ($Meta ['Location']) && !$Representation->allowRedirect ())
