@@ -621,19 +621,20 @@
           
           // Check if the collection supports extended queries
           if ($Collection instanceof qcREST_Interface_Collection_Extended) {
+            // Apply search-phrase
+            if ($Search && $Collection->setSearchPhrase ($Search))
+              $Search = null;
+            
             // Apply offset/limit
-            if (($First || $Last) && $Collection->setSlice ($First, ($Last !== null ? $Last - $First : null)))
+            if (!$Search && ($First || $Last) && $Collection->setSlice ($First, ($Last !== null ? $Last - $First : null)))
               $First = $Last = null;
             
             // Apply sorting
             if ($Sort && $Collection->setSorting ($Sort, $Order))
               $Sort = $Order = null;
-            
-            // Apply search-phrase
-            if ($Search && $Collection->setSearchPhrase ($Search))
-              $Search = null;
-            
-          } elseif (($First > 0) || ($Last !== null))
+          }
+          
+          if (($First > 0) || ($Last !== null))
             $Representation->addMeta ('X-Pagination-Performance-Warning', 'Using pagination without support on backend');
           
           // Request the children of this resource
@@ -673,7 +674,7 @@
             // Prepare finalizer
             $Calls = 1;
      
-            $Finalize = function () use (&$Calls, $Request, $Resource, $Representation, $outputProcessor, $Callback, $Private, $First, $Last, $Search, $Sort, $Order) {
+            $Finalize = function () use (&$Calls, $Request, $Resource, $Representation, $outputProcessor, $Collection, $Callback, $Private, $First, $Last, $Search, $Sort, $Order) {
               // Check if there are calls pending
               if (--$Calls > 0)
                 return;
@@ -737,7 +738,18 @@
               }
               
               // Raise the final callback
-              return $this->handleRepresentation ($Request, $Resource, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, array ('X-Resource-Type' => 'Collection'), $Callback, $Private);
+              return $this->handleRepresentation (
+                $Request,
+                $Resource,
+                $Representation,
+                $outputProcessor,
+                qcREST_Interface_Response::STATUS_OK,
+                array (
+                  'X-Resource-Type' => 'Collection',
+                  'X-Collection-Class' => get_class ($Collection),
+                ),
+                $Callback, $Private
+              );
             };
             
             // Determine how to present children on the listing
