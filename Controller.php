@@ -1,6 +1,25 @@
 <?PHP
 
+  /**
+   * qcREST - Controller
+   * Copyright (C) 2016 Bernd Holzmueller <bernd@quarxconnect.de>
+   * 
+   * This program is free software: you can redistribute it and/or modify
+   * it under the terms of the GNU General Public License as published by
+   * the Free Software Foundation, either version 3 of the License, or
+   * (at your option) any later version.
+   * 
+   * This program is distributed in the hope that it will be useful,
+   * but WITHOUT ANY WARRANTY; without even the implied warranty of
+   * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+   * GNU General Public License for more details.
+   * 
+   * You should have received a copy of the GNU General Public License
+   * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+   **/
+  
   require_once ('qcREST/Interface/Controller.php');
+  require_once ('qcREST/Interface/Collection/Extended.php');
   require_once ('qcREST/Response.php');
   require_once ('qcREST/Representation.php');
   
@@ -567,14 +586,80 @@
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           }
           
+          // Prepare representation
+          $Representation = new qcREST_Representation (array (
+            'type' => 'listing',
+          ));
+          
+          // Handle pagination
+          $rParams = $Request->getParameters ();
+          $First = 0;
+          $Last = null;
+          
+          if (isset ($rParams ['offset']) && ($rParams ['offset'] !== null))
+            $First = (int)$rParams ['offset'];
+          
+          if (isset ($rParams ['limit']) && ($rParams ['limit'] !== null))
+            $Last = $First + (int)$rParams ['limit'];
+          
+          // Handle sorting
+          if (isset ($rParams ['sort']) && ($rParams ['sort'] !== null)) {
+            $Sort = $rParams ['sort'];
+            
+            if (isset ($rParams ['order']) && (strcasecmp ($rParams ['order'], 'DESC') == 0))
+              $Order = qcREST_Interface_Collection_Extended::SORT_ORDER_ASCENDING;
+            else
+              $Order = qcREST_Interface_Collection_Extended::SORT_ORDER_DESCENDING;
+          } else
+            $Sort = $Order = null;
+          
+          // Handle searching
+          if (isset ($rParams ['search']) && (strlen ($rParams ['search']) > 0))
+            $Search = strval ($rParams ['search']);
+          else
+            $Search = null;
+          
+          // Check if the collection supports extended queries
+          if ($Collection instanceof qcREST_Interface_Collection_Extended) {
+            // Apply offset/limit
+            if (($First || $Last) && $Collection->setSlice ($First, ($Last !== null ? $Last - $First : null)))
+              $First = $Last = null;
+            
+            // Apply sorting
+            if ($Sort && $Collection->setSorting ($Sort, $Order))
+              $Sort = $Order = null;
+            
+            // Apply search-phrase
+            if ($Search && $Collection->setSearchPhrase ($Search))
+              $Search = null;
+            
+          } elseif (($First > 0) || ($Last !== null))
+            $Representation->addMeta ('X-Pagination-Performance-Warning', 'Using pagination without support on backend');
+          
           // Request the children of this resource
-          return $Collection->getChildren (function (qcREST_Interface_Collection $Collection, array $Children = null) use ($Request, $Resource, $outputProcessor, $Callback, $Private) {
+          return $Collection->getChildren (function (qcREST_Interface_Collection $Collection, array $Children = null) use ($Request, $Resource, $outputProcessor, $Callback, $Private, $First, $Last, $Search, $Sort, $Order, $Representation) {
             // Check if the call was successfull
-            if ($Children === null) {
+            if ($Children !== null) {
+              // Determine the total number of children
+              if ($Collection instanceof qcREST_Interface_Collection_Extended)
+                $Representation ['total'] = $Collection->getChildrenCount ();
+              else
+                $Representation ['total'] = count ($Children);
+            } else {
+              // Make sure that collection-parameters are reset
+              if ($Collection instanceof qcREST_Interface_Collection_Extended)
+                $Collection->resetParameters ();
+              
+              // Bail out an error
               trigger_error ('Failed to retrive the children');
               
+              // Callback our parent
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
             }
+            
+            // Make sure that collection-parameters are reset
+            if ($Collection instanceof qcREST_Interface_Collection_Extended)
+              $Collection->resetParameters ();
             
             // Determine the base-URI
             $baseURI = $this->getURI ();  
@@ -584,43 +669,6 @@
               $baseURI .= substr ($reqURI, 1);
             else
               $baseURI .= $reqURI;
-            
-            // Create a listing
-            $Representation = new qcREST_Representation (array (
-              'type' => 'listing',
-              'total' => count ($Children),
-            ));
-            
-            // Handle pagination
-            $rParams = $Request->getParameters ();
-            $Pos = 0;
-            $First = 0; 
-            $Last = count ($Children);
-            $Sort = $Order = $Search = false;
-            
-            if (isset ($rParams ['offset']) && ($rParams ['offset'] !== null)) {
-              $Representation->addMeta ('X-Performance-Warning', 'Using pagination without support on backend');
-              $First = (int)$rParams ['offset'];
-            }
-            
-            if (isset ($rParams ['limit']) && ($rParams ['limit'] !== null)) {
-              $Representation->addMeta ('X-Performance-Warning', 'Using pagination without support on backend');
-              $Last = $First + (int)$rParams ['limit'];
-            }
-            
-            if (isset ($rParams ['sort']) && ($rParams ['sort'] !== null)) {
-              $Sort = $rParams ['sort'];
-              
-              if (isset ($rParams ['order']) && (strcasecmp ($rParams ['order'], 'DESC') == 0))
-                $Order = 'DESC';
-              else
-                $Order = 'ASC';
-            }
-            
-            if (isset ($rParams ['search']) && (strlen ($rParams ['search']) > 0))
-              $Search = strval ($rParams ['search']);
-            
-            # TODO: Add support for sort and order
             
             // Prepare finalizer
             $Calls = 1;
@@ -637,7 +685,7 @@
                 
                 // Apply search-filter onto the result
                 if ($Search) {
-                  $Representation->addMeta ('X-Performance-Warning', 'Using search without support on backend');
+                  $Representation->addMeta ('X-Search-Performance-Warning', 'Using search without support on backend');
                   
                   // Filter the items
                   foreach ($Items as $ID=>$Item) {
@@ -654,7 +702,7 @@
                 
                 // Apply sort-filter onto the result
                 if ($Sort) {
-                  $Representation->addMeta ('X-Performance-Warning', 'Using sort without support on backend');
+                  $Representation->addMeta ('X-Sort-Performance-Warning', 'Using sort without support on backend');
                   
                   // Generate an index
                   $Keys = array ();
@@ -672,7 +720,7 @@
                   }
                   
                   // Sort the index
-                  if ($Order == 'DESC')
+                  if ($Order == qcREST_Interface_Collection_Extended::SORT_ORDER_DESCENDING)
                     krsort ($Keys);
                   else
                     ksort ($Keys);
@@ -701,6 +749,8 @@
             // Append children to the listing
             $Name = $Collection->getNameAttribute ();
             $Items = array ();
+            $Pos = 0;
+            $Last = ($Last === null ? count ($Children) : $Last);
             
             foreach ($Children as $Child) {
               // Check if we may skip the generation of this child
