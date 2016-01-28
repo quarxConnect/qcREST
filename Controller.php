@@ -625,13 +625,13 @@
             if ($Search && $Collection->setSearchPhrase ($Search))
               $Search = null;
             
-            // Apply offset/limit
-            if (!$Search && ($First || $Last) && $Collection->setSlice ($First, ($Last !== null ? $Last - $First : null)))
-              $First = $Last = null;
-            
             // Apply sorting
             if ($Sort && $Collection->setSorting ($Sort, $Order))
               $Sort = $Order = null;
+            
+            // Apply offset/limit
+            if (!$Sort && !$Search && ($First || $Last) && $Collection->setSlice ($First, ($Last !== null ? $Last - $First : null)))
+              $First = $Last = null;
           }
           
           if (($First > 0) || ($Last !== null))
