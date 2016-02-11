@@ -463,8 +463,12 @@
         // Generate a normal representation of that resource
         case $Request::METHOD_GET:
           // Make sure this is allowed
-          if (!$Resource->isReadable ($Request->getUser ()))
+          if (!$Resource->isReadable ($Request->getUser ())) {
+            if (defined ('QCREST_DEBUG'))
+              trigger_error ('Resource is not readable');
+            
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
+          }
           
           // Retrive the attributes
           return $Resource->getRepresentation (function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation = null) use ($Request, $outputProcessor, $Callback, $Private) {
@@ -482,8 +486,12 @@
         case $Request::METHOD_POST:
           // Convert the request into a directory-request if possible
           return $Resource->getChildCollection (function (qcREST_Interface_Resource $Self, qcREST_Interface_Collection $Collection = null) use ($Request, $Representation, $outputProcessor, $Callback, $Private) {
-            if (!$Collection)
+            if (!$Collection) {
+              if (defined ('QCREST_DEBUG'))
+                trigger_error ('No child-collection');
+              
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
+            }
             
             return $this->handleCollectionRequest ($Self, $Collection, $Request, $Representation, $outputProcessor, $Callback, $Private);
           });
@@ -491,8 +499,12 @@
         // Change attributes
         case $Request::METHOD_PUT:
           // Make sure this is allowed  
-          if (!$Resource->isWritable ($Request->getUser ()))
+          if (!$Resource->isWritable ($Request->getUser ())) {
+            if (defined ('QCREST_DEBUG'))
+              trigger_error ('Resource is not writable');
+            
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
+          }
           
           return $Resource->setRepresentation ($Representation, function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation, $Status) use ($Request, $Callback, $Private) {
             // Check if the operation was successfull
@@ -505,8 +517,12 @@
           
         case $Request::METHOD_PATCH:
           // Make sure this is allowed
-          if (!$Resource->isWritable ($Request->getUser ()))
+          if (!$Resource->isWritable ($Request->getUser ())) {
+            if (defined ('QCREST_DEBUG'))
+              trigger_error ('Resource is not writable');
+            
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
+          }
           
           // Retrive the attributes first
           return $Resource->getRepresentation (function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $currentRepresentation = null) use ($Request, $Representation, $Callback, $Private) {
@@ -541,8 +557,12 @@
         // Remove this resource
         case $Request::METHOD_DELETE:
           // Make sure this is allowed
-          if (!$Resource->isRemovable ($Request->getUser ()))
+          if (!$Resource->isRemovable ($Request->getUser ())) {
+            if (defined ('QCREST_DEBUG'))
+              trigger_error ('Resource may not be removed');
+            
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
+          }
           
           return $Resource->remove (function (qcREST_Interface_Resource $Self, $Status) use ($Request, $Callback, $Private) {
             if (!$Status)
@@ -583,6 +603,9 @@
             if (($rc === null) && ($Request->getUser () === null))
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
             
+            if (defined ('QCREST_DEBUG'))
+              trigger_error ('Collection is not browsable');
+            
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           }
           
@@ -606,7 +629,7 @@
           if (isset ($rParams ['sort']) && ($rParams ['sort'] !== null)) {
             $Sort = $rParams ['sort'];
             
-            if (isset ($rParams ['order']) && (strcasecmp ($rParams ['order'], 'DESC') == 0))
+            if (isset ($rParams ['order']) && (strcasecmp ($rParams ['order'], 'DESC') != 0))
               $Order = qcREST_Interface_Collection_Extended::SORT_ORDER_ASCENDING;
             else
               $Order = qcREST_Interface_Collection_Extended::SORT_ORDER_DESCENDING;
@@ -787,7 +810,7 @@
               $Calls++;
               call_user_func (
                 array ($Child, ($Aware ? 'getCollectionRepresentation' : 'getRepresentation')),
-                function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $rRepresentation = null) use ($Item, $Name, $Finalize) {
+                function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $rRepresentation = null) use ($Item, $Name, $Finalize, $Representation) {
                   // Make sure we don't overwrite special keys
                   unset ($rRepresentation [$Name], $rRepresentation ['uri'], $rRepresentation ['isCollection']);
                   
@@ -812,8 +835,12 @@
         // Create a new resource on this directory
         case $Request::METHOD_POST:
           // Make sure this is allowed
-          if (!$Collection->isWritable ($Request->getUser ()))
+          if (!$Collection->isWritable ($Request->getUser ())) {
+            if (defined ('QCREST_DEBUG'))
+              trigger_error ('Collection is not writable');
+            
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
+          }
           
           return $Collection->createChild ($Representation, null, function (qcREST_Interface_Collection $Self, $Name = null, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null) use ($outputProcessor, $Callback, $Private, $Request, $Resource) {
             // Check if a new child was created
@@ -860,8 +887,12 @@
           
         case $Request::METHOD_PATCH:
           // Make sure this is allowed
-          if (!$Collection->isWritable ($Request->getUser ()))
+          if (!$Collection->isWritable ($Request->getUser ())) {
+            if (defined ('QCREST_DEBUG'))
+              trigger_error ('Collection is not writable');
+            
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
+          }
           
           // Just check if we are in patch-mode ;-)
           if (!isset ($Removals))
@@ -955,8 +986,12 @@
         // Delete the entire collection
         case $Request::METHOD_DELETE:
           // Make sure this is allowed
-          if (!$Collection->isRemovable ($Request->getUser ()))
+          if (!$Collection->isRemovable ($Request->getUser ())) {
+            if (defined ('QCREST_DEBUG'))
+              trigger_error ('Collection may not be removed');
+            
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
+          }
           
           return $Collection->remove (function (qcREST_Interface_Resource $Self, $Status) use ($Request, $Callback, $Private) {
             return $this->respondStatus ($Request, ($Status ? qcREST_Interface_Response::STATUS_OK : qcREST_Interface_Response::STATUS_ERROR), null, $Callback, $Private);
