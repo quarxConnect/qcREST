@@ -757,6 +757,9 @@
                 }
                 
                 // Push back the items
+                if ($Last === null)
+                  $Last = count ($Items);
+                
                 $Representation ['items'] = array_slice ($Items, $First, $Last - $First);
               }
               
