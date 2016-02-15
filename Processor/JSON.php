@@ -54,7 +54,7 @@
         return false;
       
       // Return a new representation
-      return new qcREST_Representation ($Array);
+      return new qcREST_Representation ($Data);
     }
     // }}}
     
