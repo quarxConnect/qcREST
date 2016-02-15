@@ -162,7 +162,7 @@
      * @return bool
      **/
     public function offsetExists ($Offset) {
-      return isset ($this->Set [$Offset]);
+      return array_key_exists ($Offset, $this->Set);
     }
     // }}}
     

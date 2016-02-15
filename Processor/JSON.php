@@ -41,10 +41,20 @@
      * @return array
      **/
     public function processInput ($Data) {
-      if (!is_object ($Data = json_decode ($Data)))
+      // Try to convert JSON-Data
+      $Data = json_decode ($Data);
+      
+      // Convert object into array
+      // REMARK: We do this using get_object_vars as a direct cast will mess things up here
+      if (is_object ($Data))
+        $Data = get_object_vars ($Data);
+      
+      // Make sure it's an array
+      elseif (!is_array ($Data))
         return false;
       
-      return new qcREST_Representation ((array)$Data);
+      // Return a new representation
+      return new qcREST_Representation ($Array);
     }
     // }}}
     
