@@ -972,7 +972,6 @@
                     foreach ($childRepresentation as $Key=>$Value)
                       if (!$requireAttributes || isset ($currentRepresentation [$Key])) {
                         $currentRepresentation [$Key] = $Value;
-                        trigger_error ('Merge ' . $Key . ' with ' . $Value);
                         unset ($childRepresentation [$Key]);
                       } else
                         return call_user_func ($func, $Child, $currentRepresentation, false);
