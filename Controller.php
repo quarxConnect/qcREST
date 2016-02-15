@@ -889,7 +889,7 @@
           // Make sure this is allowed
           if (!$Collection->isWritable ($Request->getUser ())) {
             if (defined ('QCREST_DEBUG'))
-              trigger_error ('Collection is not writable');
+              trigger_error ('Collection is not writable and contents may not be replaced (PUT) or patched (PATCH)');
             
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           }
@@ -899,7 +899,7 @@
             $Removals = null;
           
           // Request the children of this resource
-          return $Collection->getChildren (function (qcREST_Interface_Collection $Collection, array $Children = null) use ($Removals, $Request, $outputProcessor, $Callback, $Private) {
+          return $Collection->getChildren (function (qcREST_Interface_Collection $Collection, array $Children = null) use ($Removals, $Request, $Resource, $Representation, $outputProcessor, $Callback, $Private) {
             // Check if the call was successfull 
             if ($Children === null) {
               trigger_error ('Failed to retrive the children');
@@ -916,9 +916,6 @@
               if (isset ($Representation [$Name = $Child->getName ()])) {
                 // Mark the child as updated
                 $Updates [$Name] = $Child;
-                
-                // Remove from to-be-created
-                unset ($Create [$Name]);
                 
               // Enqueue it for removal (chilren will only be removed if the request is of method PUT)
               } elseif ($Removals !== null)
@@ -954,6 +951,40 @@
                 }
               }
               
+              // Try to update pending children
+              foreach ($Updates as $Name=>$Child) {
+                // Create a child-representation for the update
+                $childRepresentation = new qcREST_Representation (is_object ($Representation [$Name]) ? get_object_vars ($Representation [$Name]) : $Representation [$Name]);
+                
+                // Remove from queue
+                unset ($Updates [$Name], $Create [$Name]);
+                
+                // Check if we are PATCHing and should *really* PATCH
+                if (($Removals === null) && (!defined ('QCREST_PATCH_ON_COLLECTION_PATCHES_RESOURCES') || QCREST_PATCH_ON_COLLECTION_PATCHES_RESOURCES))
+                  return $Child->getRepresentation (function (qcREST_Interface_Resource $Child, qcREST_Interface_Representation $currentRepresentation = null) use ($func, $childRepresentation) {
+                    // Check if the current representation could be retrived
+                    if ($currentRepresentation === null)
+                      return call_user_func ($func, $Child, $childRepresentation, false);
+                    
+                    // Update Representation   
+                    $requireAttributes = false;
+                    
+                    foreach ($childRepresentation as $Key=>$Value)
+                      if (!$requireAttributes || isset ($currentRepresentation [$Key])) {
+                        $currentRepresentation [$Key] = $Value;
+                        trigger_error ('Merge ' . $Key . ' with ' . $Value);
+                        unset ($childRepresentation [$Key]);
+                      } else
+                        return call_user_func ($func, $Child, $currentRepresentation, false);
+                    
+                    // Forward the update
+                    return $Child->setRepresentation ($currentRepresentation, $func);
+                  });
+                
+                // Treat the update as a complete Representation
+                return $Child->setRepresentation ($childRepresentation, $func);
+              }
+              
               // Try to create pending children
               foreach ($Create as $Name=>$childAttributes) {
                 unset ($Create [$Name]);
@@ -961,22 +992,16 @@
                 return $Resource->createChild (new qcREST_Representation ($childAttributes), $Name, $func, null, $Request);
               }
               
-              // Try to update pending children
-              foreach ($Updates as $Name=>$Child) {
-                unset ($Updates [$Name]);
-                
-                return $Child->setRepresentation (new qcREST_Representation ($Representation [$Name]), $func);
-              }
-              
               // Try to remove removals
-              foreach ($Removals as $Name=>$Child) {
-                unset ($Removals [$Name]);
-                
-                return $Child->remove ($func);
-              }
+              if ($Removals !== null)
+                foreach ($Removals as $Name=>$Child) {
+                  unset ($Removals [$Name]);
+                  
+                  return $Child->remove ($func);
+                }
               
               // If we get here, we were finished
-              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_OK, null, $Callback, $Private);
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_STORED, null, $Callback, $Private);
             };
             
             // Dispatch to update-function
