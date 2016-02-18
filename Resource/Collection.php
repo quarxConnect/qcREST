@@ -25,6 +25,7 @@
     private $Browsable = true;
     private $Writable = true;
     private $Removable = false;
+    private $fullRepresentation = false;
     private $Callbacks = array ();
     
     // {{{ __construct
@@ -35,17 +36,19 @@
      * @param bool $Browsable (optional)
      * @param bool $Writable (optional)
      * @param bool $Removable (optional)
+     * @param bool $fullRepresentation (optional)
      * 
      * @access friendly
      * @return void
      **/
-    function __construct (array $Children = null, $Browsable = true, $Writable = true, $Removable = true) {
+    function __construct (array $Children = null, $Browsable = true, $Writable = true, $Removable = true, $fullRepresentation = false) {
       if ($Children)
         $this->Children = $Children;
       
       $this->Browsable = $Browsable;
       $this->Writable = $Writable;
       $this->Removable = $Removable;
+      $this->fullRepresentation = $fullRepresentation;
     }
     // }}}
     
@@ -143,9 +146,41 @@
     }
     // }}}
     
+    // {{{ getChildFullRepresenation
+    /**
+     * Determine wheter to output the full representation of children instead of a simple summary
+     * 
+     * @access public
+     * @return bool
+     **/
+    public function getChildFullRepresenation () {
+      return $this->fullRepresentation;
+    }
+    // }}}
+    
+    // {{{ setChildFullRepresenation
+    /**
+     * Decide wheter to output the full representation of children instead of a simple summary
+     * 
+     * @access public
+     * @return bool
+     **/
+    public function setChildFullRepresenation ($Toggle = true) {
+      $this->fullRepresentation = !!$Toggle;
+    }
+    // }}}
+    
+    // {{{ getChildrenS
+    /**
+     * Retrive the entire set of currently known children
+     * 
+     * @access protected
+     * @return array
+     **/
     protected function getChildrenS () {
       return $this->Children;
     }
+    // }}}
     
     // {{{ getChildren
     /**
