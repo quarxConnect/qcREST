@@ -519,13 +519,13 @@
           // Make sure this is allowed
           if (!$Resource->isWritable ($Request->getUser ())) {
             if (defined ('QCREST_DEBUG'))
-              trigger_error ('Resource is not writable');
+              trigger_error ('Resource is not writable (will not patch)');
             
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           }
           
           // Retrive the attributes first
-          return $Resource->getRepresentation (function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $currentRepresentation = null) use ($Request, $Representation, $Callback, $Private) {
+          return $Resource->getRepresentation (function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $currentRepresentation = null) use ($Request, $Representation, $outputProcessor, $Callback, $Private) {
             // Check if the attributes were retrived
             if ($currentRepresentation === null) {
               trigger_error ('Could not retrive current attribute-set');
@@ -544,10 +544,16 @@
                 return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_ERROR, null, $Callback, $Private);
             
             // Try to update the resource's attributes
-            return $Resource->setRepresentation ($currentRepresentation, function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation, $Status) use ($Request, $Callback, $Private) {
+            return $Resource->setRepresentation ($currentRepresentation, function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation, $Status) use ($Request, $outputProcessor, $Callback, $Private) {
               // Check if the operation was successfull
-              if (!$Status)
+              if (!$Status) {
+                // Use representation if there is a negative status on it
+                if ($Representation->getStatus () >= 400)
+                  return $this->handleRepresentation ($Request, $Resource, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, null, $Callback, $Private);
+                
+                // Give a normal bad reply if representation does not work
                 return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, null, $Callback, $Private);
+              }
               
               # TODO: Return representation here?
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_STORED, null, $Callback, $Private);
