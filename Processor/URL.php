@@ -99,7 +99,7 @@
           
           // Read the payload
           if ($Params && isset ($Params ['name']))
-            $Representation [$Params ['name']] = $x = substr ($Data, $Pos, $lEnd - $Pos);
+            $Result [$Params ['name']] = substr ($Data, $Pos, $lEnd - $Pos);
           
           // Move to next block
           $Pos = $lEnd + $bLength + 4;
