@@ -26,11 +26,13 @@
      * Process input-data
      * 
      * @param string $Data
+     * @param string $Type
+     * @param qcREST_Interface_Request $Request (optional)
      * 
      * @access public
      * @return qcREST_Interface_Representation
      **/
-    public function processInput ($Data);
+    public function processInput ($Data, $Type, qcREST_Interface_Request $Request = null);
     // }}}
     
     // {{{ processOutput

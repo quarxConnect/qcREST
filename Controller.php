@@ -203,6 +203,86 @@
     abstract public function setResponse (qcREST_Interface_Response $Response, callable $Callback = null, $Private = null);
     // }}}
     
+    // {{{ httpHeaderParameters
+    /**
+     * Parse/Explode Parameters from a HTTP-Header
+     * 
+     * @param string $Data
+     * 
+     * @access public
+     * @return array
+     **/
+    public static function httpHeaderParameters ($Data) {
+      // Create an empty set of parameters
+      $Parameters = array ();
+      
+      // Parse the input
+      $Token = '!#$%&\'*+-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ^_`abcdefghijklmnopqrstuvwxyz|~';
+      $Start = 0;
+      $Mode = 0;
+      $Len = strlen ($Data);
+      $Attribute = null;
+      
+      for ($Pos = $Start; $Pos < $Len; $Pos++) {
+        // Read attribute or token-value
+        if ($Mode < 2) {
+          // Check if the current character is a valid token-value
+          if (strpos ($Token, $Data [$Pos]) !== false)
+            continue;
+          
+          // Check if an attribute was ready
+          if ($Mode == 0) {
+            if ((($Data [$Pos] == ' ') || ($Data [$Pos] == ';')) && ($Pos == $Start++))
+              continue;
+            elseif ($Data [$Pos] != '=')
+              return false;
+            
+            $Attribute = substr ($Data, $Start, $Pos - $Start);
+            $Start = $Pos + 1;
+            $Mode = 1;
+            
+            continue;
+          }
+          
+          // Check if the token-value is a quoted value
+          if (($Data [$Pos] == '"') && ($Pos == $Start)) {
+            $Mode = 2;
+            $Start++;
+            
+            continue;
+          }
+          
+          // Check if the token-value is finished
+          if ($Data [$Pos] != ';')
+            return false;
+          
+          $Parameters [$Attribute] = substr ($Data, $Start, $Pos - $Start);
+          $Mode = 0;
+          $Start = $Pos + 1;
+          
+        
+        // Read quoted value
+        } elseif ($Mode == 2) {
+          if ($Data [$Pos] != '"')
+            continue;
+          
+          $Parameters [$Attribute] = substr ($Data, $Start, $Pos - $Start);
+          $Mode = 0;
+          $Start = $Pos + 1;
+        }
+      }
+      
+      // Process last unfinished value
+      if ($Mode == 1)
+        $Parameters [$Attribute] = substr ($Data, $Start);
+      elseif ($Mode != 0)
+        return false;
+      
+      // Return the result
+      return $Parameters;
+    }
+    // }}}
+    
     // {{{ handle
     /**
      * Try to process a request, if no request is given explicitly try to fetch one from SAPI
@@ -247,8 +327,12 @@
           // Check if there is a request-body
           if (($cType = $Request->getContentType ()) !== null) {
             // Make sure we have a processor for this
-            if (!is_object ($inputProcessor = $this->getProcessor ($cType)))
+            if (!is_object ($inputProcessor = $this->getProcessor ($cType))) {
+              if (defined ('QCREST_DEBUG'))
+                trigger_error ('No input-processor for content-type ' . $cType);
+              
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_UNSUPPORTED, null, $Callback, $Private);
+            }
           } else
             $inputProcessor = null;
           
@@ -273,7 +357,7 @@
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_MISSING, null, $Callback, $Private);
             
             // Try to parse the request-body
-            elseif (!($Representation = $inputProcessor->processInput ($Input)))
+            elseif (!($Representation = $inputProcessor->processInput ($Input, $cType, $Request)))
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_ERROR, null, $Callback, $Private);
           
           // ... or fail if there is content on the request

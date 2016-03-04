@@ -135,8 +135,46 @@
         $Content = (isset ($HTTP_RAW_POST_DATA) ? $HTTP_RAW_POST_DATA : file_get_contents ('php://input'));
         $ContentType = $_SERVER ['CONTENT_TYPE'];
         
-        if (($p = strpos ($ContentType, ';')) !== false)
+        if (($p = strpos ($ContentType, ';')) !== false) {
+          $ContentExtra = trim (substr ($ContentType, $p + 1));
           $ContentType = substr ($ContentType, 0, $p);
+        } else
+          $ContentExtra = null;
+        
+        // Check wheter to work around multipart/form-data uploads
+        if (($ContentType == 'multipart/form-data') && (strlen ($Content) == 0)) {
+          // Try to find boundary
+          if (!is_array ($cParameters = $this->httpHeaderParameters ($ContentExtra)) ||
+              !isset ($cParameters ['boundary'])) {
+            trigger_error ('No boundary on multipart-content-type found');
+            
+            return false;
+          }
+          
+          // Put POST-Variables back to buffer
+          foreach ($_POST as $Key=>$Value)
+            $Content .=
+              '--' . $cParameters ['boundary'] . "\r\n" .
+              'Content-Disposition: form-data; name="' . $Key . '"' . "\r\n\r\n" .
+              $Value . "\r\n";
+          
+          // Put uploaded files back to buffer
+          foreach ($_FILES as $Key=>$Info) {
+            // Put back to buffer
+            $Content .=
+              '--' . $cParameters ['boundary'] . "\r\n" .
+              'Content-Disposition: form-data; name="' . $Key . '"' . (isset ($Info ['name']) ? '; filename="' . $Info ['name'] . '"' : '') . "\r\n" .
+              (isset ($Info ['type']) ? 'Content-Type: ' . $Info ['type'] . "\r\n" : '') . "\r\n" .
+              file_get_contents ($Info ['tmp_name']) . "\r\n";
+            
+            // Try to remove the file
+            @unlink ($Info ['tmp_name']);
+            unset ($_FILES [$Key]);
+          }
+          
+          // Finish MIME-Content
+          $Content .= '--' . $cParameters ['boundary'] . '--' . "\r\n";
+        }
       } else
         $Content = $ContentType = null;
       
@@ -185,7 +223,7 @@
     /**
      * Write out a response for a previous request
      * 
-     * @param qcREST_Interface_Response $Response
+     * @param qcREST_Interface_Response $Response The response
      * @param callable $Callback (optional) A callback to raise once the operation was completed
      * @param mixed $Private (optional) Any private data to pass to the callback
      * 

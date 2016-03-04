@@ -36,11 +36,13 @@
      * Process input-data
      * 
      * @param string $Data
+     * @param string $Type
+     * @param qcREST_Interface_Request $Request (optional)
      * 
      * @access public
      * @return array
      **/
-    public function processInput ($Data) {
+    public function processInput ($Data, $Type, qcREST_Interface_Request $Request = null) {
       // Try to convert JSON-Data
       $Data = json_decode ($Data);
       
