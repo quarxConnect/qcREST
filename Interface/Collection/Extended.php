@@ -70,6 +70,18 @@
     public function setSearchPhrase ($Phrase);
     // }}}
     
+    // {{{ setNames
+    /**
+     * Store a set of names to retrive on later getChildren()-Calls
+     * 
+     * @param array $Names
+     * 
+     * @access public
+     * @return bool
+     **/
+    public function setNames (array $Names);
+    // }}}
+    
     // {{{ resetParameters
     /**
      * Reset any search/sort/limit-parameters applied to this collection

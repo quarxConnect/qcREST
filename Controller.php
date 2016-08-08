@@ -988,8 +988,12 @@
           }
           
           // Just check if we are in patch-mode ;-)
-          if (!isset ($Removals))
+          if (!isset ($Removals)) {
             $Removals = null;
+            
+            if ($Collection instanceof qcREST_Interface_Collection_Extended)
+              $Collection->setNames (array_keys ($Representation->toArray ()));
+          }
           
           // Request the children of this resource
           return $Collection->getChildren (function (qcREST_Interface_Collection $Collection, array $Children = null) use ($Removals, $Request, $Resource, $Representation, $outputProcessor, $Callback, $Private) {
