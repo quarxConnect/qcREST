@@ -162,6 +162,20 @@
     }
     // }}}
     
+    // {{{ setContent
+    /**
+     * Store a new request-body
+     * 
+     * @param string $Content
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setContent ($Content) {
+      $this->Content = $Content;
+    }
+    // }}}
+    
     // {{{ getAcceptedContentTypes
     /**
      * Retrive the accepted mime-types for a response
