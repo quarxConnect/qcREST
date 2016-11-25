@@ -18,10 +18,10 @@
    * along with this program.  If not, see <http://www.gnu.org/licenses/>.
    **/
   
-  require_once ('qcREST/Controller.php');
+  require_once ('qcREST/Controller/HTTP.php');
   require_once ('qcREST/Request.php');
   
-  class qcREST_Controller_Native extends qcREST_Controller {
+  class qcREST_Controller_Native extends qcREST_Controller_HTTP {
     /* Virtual Base-URI */
     private $virtualBaseURI = null;
     
@@ -116,17 +116,7 @@
         $URI = substr ($URI, strlen ($this->virtualBaseURI));
       
       // Truncate parameters
-      $Parameters = array ();
-      
-      if (($p = strpos ($URI, '?')) !== false) {
-        foreach (explode ('&', substr ($URI, $p + 1)) as $Parameter)
-          if (($pv = strpos ($Parameter, '=')) !== false)
-            $Parameters [urldecode (substr ($Parameter, 0, $pv))] = urldecode (substr ($Parameter, $pv + 1));
-          else
-            $Parameters [urldecode ($Parameter)] = true;
-        
-        $URI = substr ($URI, 0, $p);
-      }
+      $URI = $this->explodeURI ($URI);
       
       // Check if there is a request-body
       global $HTTP_RAW_POST_DATA;
@@ -179,35 +169,7 @@
         $Content = $ContentType = null;
       
       // Extract accepted types
-      $Types = array ();
-      
-      if (isset ($_SERVER ['HTTP_ACCEPT'])) {
-        $Preferences = array ();
-        
-        foreach (explode (',', $_SERVER ['HTTP_ACCEPT']) as $Pref) {
-          $Data = explode (';', $Pref);
-          $Mime = array_shift ($Data);
-          $Preference = 1.0;  
-          
-          foreach ($Data as $Param)
-            if (substr ($Param, 0, 2) == 'q=')
-              $Preference = floatval (substr ($Param, 2));
-          
-          $Preference = floor ($Preference * 100);
-          
-          if (isset ($Preferences [$Preference]))
-            $Preferences [$Preference][] = $Mime;
-          else
-            $Preferences [$Preference] = array ($Mime);
-        }
-        
-        krsort ($Preferences);
-        
-        foreach ($Preferences as $Mimes)
-          foreach ($Mimes as $Mime)
-            $Types [] = $Mime;
-      } else
-        $Types [] = '*/*';
+      $Types = $this->explodeAcceptHeader (isset ($_SERVER ['HTTP_ACCEPT']) ? $_SERVER ['HTTP_ACCEPT'] : '');
       
       // Prepare meta-data
       $Meta = apache_request_headers ();
@@ -215,7 +177,8 @@
       if (!isset ($Meta ['Authorization']) && isset ($_SERVER ['PHP_AUTH_USER']))
         $Meta ['Authorization'] = 'Basic ' . base64_encode ($_SERVER ['PHP_AUTH_USER'] . ':' . (isset ($_SERVER ['PHP_AUTH_PW']) ? $_SERVER ['PHP_AUTH_PW'] : ''));
       
-      return ($Request = new qcREST_Request ($URI, $Method, $Parameters, $Meta, $Content, $ContentType, $Types));
+      // Create the final request
+      return new qcREST_Request ($URI [0], $Method, $URI [1], $Meta, $Content, $ContentType, $Types);
     }
     // }}}
     
@@ -241,31 +204,19 @@
       
       // Generate output
       $Status = true;
-      $sMap = array (
-        qcREST_Interface_Response::STATUS_OK => 'Okay',
-        qcREST_Interface_Response::STATUS_CREATED => 'Resource was created',
-        qcREST_Interface_Response::STATUS_NOT_FOUND => 'Resource could not be found',
-        qcREST_Interface_Response::STATUS_NOT_ALLOWED => 'Operation is not allowed',
-        qcREST_Interface_Response::STATUS_CLIENT_ERROR => 'There was an error with your request',
-        qcREST_Interface_Response::STATUS_FORMAT_UNSUPPORTED => 'Unsupported Input-Format',
-        qcREST_Interface_Response::STATUS_FORMAT_REJECTED => 'Input-Format was rejected by the resource',
-        qcREST_Interface_Response::STATUS_NO_FORMAT => 'No processor for the requested output-format was found',
-        # qcREST_Interface_Response::STATUS_UNNAMED_CHILD_ERROR => '',
-        qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED => 'You need to authenticate',
-        qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED => 'You are not authorized to access this resource',
-        qcREST_Interface_Response::STATUS_UNSUPPORTED => 'Operation is not supported',
-        qcREST_Interface_Response::STATUS_ERROR => 'An internal error happened',
-      );
       
-      foreach ($Response->getMeta ()  as $Key=>$Value)
+      foreach ($Response->getMeta () as $Key=>$Value)
         if (is_array ($Value))
           foreach ($Value as $Val)
             header ($Key . ': ' . $Val, false);
         else
           header ($Key. ': ' . $Value);
       
-      header ('HTTP/1.1 ' . ($Code = $Response->getStatus ()) . (isset ($sMap [$Code]) ? ' ' . $sMap [$Code] : ''));
-      header ('Status: ' . $Code . (isset ($sMap [$Code]) ? ' ' . $sMap [$Code] : ''));
+      $statusCode = $Response->getStatus ();
+      $statusText = $this->getStatusCodeDescription ($statusCode);
+      
+      header ('HTTP/1.1 ' . $statusCode . ($statusText !== null ? ' ' . $statusText : ''));
+      header ('Status: ' . $statusCode . ($statusText !== null ? ' ' . $statusText : ''));
       header ('X-Powered-By: qcREST/0.2 for CGI');
       header ('Content-Type: ' . $Response->getContentType ());
       
@@ -301,8 +252,13 @@
      * @return bool
      **/
     public function handle (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
+      // Start output-buffering
       ob_start ();
       
+      // Switch off error-reporting (ugly, i know!)
+      ini_set ('display_errors', 'Off');
+      
+      // Inherit to our parent
       return parent::handle ($Callback, $Private, $Request);
     }
     // }}}
