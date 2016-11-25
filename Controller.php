@@ -23,9 +23,6 @@
   require_once ('qcREST/Response.php');
   require_once ('qcREST/Representation.php');
   
-  // Don't display PHP-Errors by default
-  ini_set ('display_errors', 'Off');
-  
   abstract class qcREST_Controller implements qcREST_Interface_Controller {
     /* REST-Resource to use as Root */
     private $Root = null;
@@ -310,7 +307,7 @@
       
       // Make sure we have a root-element assigned
       if (!$this->Root)
-        return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_SERVER_ERROR, null, $Callback, $Private);
+        return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
       
       // Try to authenticate the request
       return $this->authenticateRequest ($Request, function (qcREST_Interface_Controller $Self, qcREST_Interface_Request $Request, $Status, qcVCard_Entity $User = null) use ($Callback, $Private) {
