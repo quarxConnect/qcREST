@@ -172,7 +172,7 @@
      * @return void
      **/
     public function setContent ($Content) {
-      $this->Content = $Content;
+      $this->requestContent = $Content;
     }
     // }}}
     
