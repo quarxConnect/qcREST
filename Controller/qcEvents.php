@@ -24,7 +24,11 @@
   require_once ('qcEvents/Server/HTTP.php');
   
   class qcREST_Controller_qcEvents extends qcREST_Controller_HTTP {
+    /* Server-Signature for HTTP-Headers */
     const SIGNATURE = 'qcREST/0.2 for qcEvents';
+    
+    /* Virtual Base-URI */
+    private $virtualBaseURI = null;
     
     // {{{ __construct
     /**
@@ -45,32 +49,30 @@
         throw new exception ('Could not set child-class on pool');
       
       // Register a hook for the child-class
-      $Pool->addChildHook ('httpdRequestReceived', function (qcEvents_Server_HTTP $Server, qcEvents_Stream_HTTP_Header $Request, $Body = null) {
-        // Try to create a REST-Request
-        if (!is_object ($restRequest = $this->getRequestFromHeader ($Request))) {
-          // Create Response-Header
-          $Response = new qcEvents_Stream_HTTP_Header (array (
-            'HTTP/' . $Request->getVersion (true) . ' 500 Internal Server Error',
-            'Server: ' . self::SIGNATURE,
-            'Content-Type: text/plain'
-          ));
-          
-          return $Server->httpdSetResponse ($Request, $Response, 'Internal Service Error' . "\r\n");
-        }
+      $Pool->addChildHook ('httpdRequestReceived', array ($this, 'handleRequest'));
+    }
+    // }}}
+    
+    // {{{ setVirtualBaseURI
+    /**
+     * Set a base-uri to strip from virtual URIs
+     * 
+     * @param string $URI
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setVirtualBaseURI ($URI) {
+      if (strlen ($URI) > 1) {
+        $this->virtualBaseURI = strval ($URI);
         
-        // Forward payload to the request
-        $restRequest->setContent ($Body);
-        unset ($Body);
+        if ($this->virtualBaseURI [strlen ($this->virtualBaseURI) - 1] == '/')
+          $this->virtualBaseURI = substr ($this->virtualBaseURI, 0, -1);
         
-        // Forward the request to REST-Handler
-        return $this->handle (
-          function (qcREST_Interface_Controller $Controller, qcREST_Interface_Request $restRequest, qcREST_Interface_Response $restResponse, $Status) use ($Request, $Server) {
-            // Forward the response
-            $Server->httpdSetResponse ($Request, $this->getHeaderFromResponse ($restResponse), $restResponse->getContent ());
-          }, null,
-          $restRequest
-        );
-      });
+        if ($this->virtualBaseURI [0] != '/')
+          $this->virtualBaseURI = '/' . $this->virtualBaseURI;
+      } else
+        $this->virtualBaseURI = null;
     }
     // }}}
     
@@ -83,7 +85,7 @@
      **/
     public function getURI () {
       # TODO: Servername? Port? Custom path?
-      return '/';
+      return ($this->virtualBaseURI !== null ? $this->virtualBaseURI : '') . '/';
     }
     // }}}
     
@@ -134,6 +136,16 @@
       
       // Strip parameters from URI
       $URI = $this->explodeURI ($Header->getURI ());
+      
+      // Check wheter to strip virtual base URI
+      if ($this->virtualBaseURI !== null) {
+        $vLength = strlen ($this->virtualBaseURI);
+        
+        if (substr ($URI [0], 0, $vLength + 1) == $this->virtualBaseURI . '/')
+          $URI [0] = substr ($URI [0], $vLength);
+        else
+          trigger_error ('Received request without matching Base-URI-prefix');
+      }
       
       // Process headers
       $Meta = $Header->getFields ();;
@@ -215,6 +227,45 @@
     public function setResponse (qcREST_Interface_Response $Response, callable $Callback = null, $Private = null) {
       if ($Callback)
         call_user_func ($Callback, $this, $Response, true, $Private);
+    }
+    // }}}
+    
+    // {{{ handleRequest
+    /**
+     * Process a HTTP-Request
+     * 
+     * @param qcEvents_Server_HTTP $Server
+     * @param qcEvents_Stream_HTTP_Header $Request
+     * @param string $Body (optional)
+     * 
+     * @access public
+     * @return void
+     **/
+    public function handleRequest (qcEvents_Server_HTTP $Server, qcEvents_Stream_HTTP_Header $Request, $Body = null) {
+      // Try to create a REST-Request
+        if (!is_object ($restRequest = $this->getRequestFromHeader ($Request))) {
+          // Create Response-Header
+          $Response = new qcEvents_Stream_HTTP_Header (array (
+            'HTTP/' . $Request->getVersion (true) . ' 500 Internal Server Error',
+            'Server: ' . self::SIGNATURE,
+            'Content-Type: text/plain'   
+          ));
+             
+          return $Server->httpdSetResponse ($Request, $Response, 'Internal Service Error' . "\r\n");
+        }
+         
+        // Forward payload to the request
+        $restRequest->setContent ($Body);
+        unset ($Body);
+
+        // Forward the request to REST-Handler
+        return $this->handle (
+          function (qcREST_Interface_Controller $Controller, qcREST_Interface_Request $restRequest, qcREST_Interface_Response $restResponse, $Status) use ($Request, $Server) {
+            // Forward the response
+            $Server->httpdSetResponse ($Request, $this->getHeaderFromResponse ($restResponse), $restResponse->getContent ());
+          }, null,
+          $restRequest
+        );
     }
     // }}}
   }
