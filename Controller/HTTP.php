@@ -100,28 +100,29 @@
       $Preferences = array ();
       
       // Parse the value
-      foreach (explode (',', $Value) as $Pref) {
-        // Split preference into parts
-        $Data = explode (';', $Pref);
-        
-        // Grab the actual mime-type
-        $Mime = array_shift ($Data); 
-        
-        // Lookup preference
-        $Preference = 1.0;  
-        
-        foreach ($Data as $Param)
-          if (substr ($Param, 0, 2) == 'q=')
-            $Preference = floatval (substr ($Param, 2));
-        
-        $Preference = floor ($Preference * 100);
-        
-        // Append to preferences
-        if (isset ($Preferences [$Preference]))
-          $Preferences [$Preference][] = $Mime;
-        else
-          $Preferences [$Preference] = array ($Mime);
-      }
+      if (strlen ($Value) > 0)
+        foreach (explode (',', $Value) as $Pref) {
+          // Split preference into parts
+          $Data = explode (';', $Pref);
+          
+          // Grab the actual mime-type
+          $Mime = array_shift ($Data); 
+          
+          // Lookup preference
+          $Preference = 1.0;  
+          
+          foreach ($Data as $Param)
+            if (substr ($Param, 0, 2) == 'q=')
+              $Preference = floatval (substr ($Param, 2));
+          
+          $Preference = floor ($Preference * 100);
+          
+          // Append to preferences
+          if (isset ($Preferences [$Preference]))
+            $Preferences [$Preference][] = $Mime;
+          else
+            $Preferences [$Preference] = array ($Mime);
+        }
       
       // Sort by preferences
       krsort ($Preferences);
