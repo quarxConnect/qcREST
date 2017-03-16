@@ -506,7 +506,7 @@
       
       $Authenticators = $this->Authenticators;
       $Handler = null;
-      $Handler = function (qcREST_Interface_Authenticator $Self = null, qcREST_Interface_Request $Request = null, $Status = null, qcVCard_Entity $User = null) use ($Request, $Callback, $Private, &$Handler, &$Authenticators) {
+      $Handler = function (qcREST_Interface_Authenticator $Self = null, qcREST_Interface_Request $oRequest = null, $Status = null, qcVCard_Entity $User = null) use ($Request, $Callback, $Private, &$Handler, &$Authenticators) {
         // Check the result
         if (($Self !== null) && ($Status !== null))
           return call_user_func ($Callback, $this, $Request, !!$Status, $User, $Private);
