@@ -25,36 +25,36 @@
     /**
      * Checks if this collection is writable and may be modified by the client
      * 
-     * @param qcVCard_Entity $User (optional)
+     * @param qcEntity_Card $User (optional)
      * 
      * @access public
      * @return bool
      **/
-    public function isWritable (qcVCard_Entity $User = null);
+    public function isWritable (qcEntity_Card $User = null);
     // }}}
     
     // {{{ isRemovable
     /**
      * Checks if this collection may be removed by the client
      * 
-     * @param qcVCard_Entity $User (optional)
+     * @param qcEntity_Card $User (optional)
      * 
      * @access public
      * @return bool
      **/
-    public function isRemovable (qcVCard_Entity $User = null);
+    public function isRemovable (qcEntity_Card $User = null);
     // }}}
     
     // {{{ isBrowsable
     /**
      * Checks if children of this directory may be discovered
      * 
-     * @param qcVCard_Entity $User (optional)
+     * @param qcEntity_Card $User (optional)
      * 
      * @access public
      * @return bool
      **/
-    public function isBrowsable (qcVCard_Entity $User = null);
+    public function isBrowsable (qcEntity_Card $User = null);
     // }}}
     
     

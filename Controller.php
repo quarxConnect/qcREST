@@ -310,7 +310,7 @@
         return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
       
       // Try to authenticate the request
-      return $this->authenticateRequest ($Request, function (qcREST_Interface_Controller $Self, qcREST_Interface_Request $Request, $Status, qcVCard_Entity $User = null) use ($Callback, $Private) {
+      return $this->authenticateRequest ($Request, function (qcREST_Interface_Controller $Self, qcREST_Interface_Request $Request, $Status, qcEntity_Card $User = null) use ($Callback, $Private) {
         // Stop if authentication failed
         if ($Status === false)
           return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED, null, $Callback, $Private);
@@ -491,7 +491,7 @@
      * 
      * The callback will be raised in the form of
      * 
-     *   function (qcREST_Interface_Controller $Self, qcREST_Interface_Request $Request, bool $Status, qcVCard_Entity $User = null, mixed $Private = null) { }
+     *   function (qcREST_Interface_Controller $Self, qcREST_Interface_Request $Request, bool $Status, qcEntity_Card $User = null, mixed $Private = null) { }
      * 
      * $Status indicated wheter the request should be processed or not,
      * $User may contain an user-entity that was identified for the request
@@ -506,7 +506,7 @@
       
       $Authenticators = $this->Authenticators;
       $Handler = null;
-      $Handler = function (qcREST_Interface_Authenticator $Self = null, qcREST_Interface_Request $oRequest = null, $Status = null, qcVCard_Entity $User = null) use ($Request, $Callback, $Private, &$Handler, &$Authenticators) {
+      $Handler = function (qcREST_Interface_Authenticator $Self = null, qcREST_Interface_Request $oRequest = null, $Status = null, qcEntity_Card $User = null) use ($Request, $Callback, $Private, &$Handler, &$Authenticators) {
         // Check the result
         if (($Self !== null) && ($Status !== null))
           return call_user_func ($Callback, $this, $Request, !!$Status, $User, $Private);

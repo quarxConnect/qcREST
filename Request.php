@@ -117,7 +117,7 @@
      * if a user is authorized to access the resource!
      * 
      * @access public 
-     * @return qcVCard
+     * @return qcEntity_Card
      **/
     public function getUser () {
       return $this->authenticatedUser;
@@ -128,12 +128,12 @@
     /**
      * Store a user-entity on this request that is belived to be authenticated from the request
      * 
-     * @param qcVCard_Entity $User
+     * @param qcEntity_Card $User
      * 
      * @access public
      * @return void
      **/
-    public function setUser (qcVCard_Entity $User) {
+    public function setUser (qcEntity_Card $User) {
       $this->authenticatedUser = $User;
     }
     // }}}

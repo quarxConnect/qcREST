@@ -23,36 +23,36 @@
     /**
      * Checks if this resource's attributes might be forwarded to the client
      * 
-     * @param qcVCard_Entity $User (optional)
+     * @param qcEntity_Card $User (optional)
      * 
      * @access public
      * @return bool
      **/
-    public function isReadable (qcVCard_Entity $User = null);
+    public function isReadable (qcEntity_Card $User = null);
     // }}}
     
     // {{{ isWritable
     /**
      * Checks if this resource is writable and may be modified by the client
      * 
-     * @param qcVCard_Entity $User (optional)
+     * @param qcEntity_Card $User (optional)
      * 
      * @access public
      * @return bool
      **/
-    public function isWritable (qcVCard_Entity $User = null);
+    public function isWritable (qcEntity_Card $User = null);
     // }}}
     
     // {{{ isRemovable
     /**
      * Checks if this resource may be removed by the client
      * 
-     * @param qcVCard_Entity $User (optional)
+     * @param qcEntity_Card $User (optional)
      * 
      * @access public
      * @return bool
      **/
-    public function isRemovable (qcVCard_Entity $User = null);
+    public function isRemovable (qcEntity_Card $User = null);
     // }}}
     
     

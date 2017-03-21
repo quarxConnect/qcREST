@@ -99,12 +99,12 @@
     /**
      * Checks if children of this directory may be discovered
      * 
-     * @param qcVCard_Entity $User (optional)
+     * @param qcEntity_Card $User (optional)
      * 
      * @access public
      * @return bool
      **/
-    public function isBrowsable (qcVCard_Entity $User = null) {
+    public function isBrowsable (qcEntity_Card $User = null) {
       return true;
     }
     // }}}

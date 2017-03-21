@@ -29,7 +29,7 @@
      * 
      * The callback will be raised in the form of
      *   
-     *   function (qcREST_Interface_Authenticator $Self, qcREST_Interface_Request $Request, bool $Status, qcVCard_Entity $Entity = null, mixed $private = null) { }
+     *   function (qcREST_Interface_Authenticator $Self, qcREST_Interface_Request $Request, bool $Status, qcEntity_Card $Entity = null, mixed $private = null) { }
      * 
      * $Status indicated wheter the request should be processed or not - if unsure this should be NULL,
      * $User may contain an user-entity that was identified for the request
