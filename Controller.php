@@ -561,7 +561,7 @@
             }
             
             return $this->handleRepresentation ($Request, $Resource, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, null, $Callback, $Private);
-          });
+          }, null, $Request);
         
         // Check if a new sub-resource is requested
         case $Request::METHOD_POST:
@@ -639,7 +639,7 @@
               # TODO: Return representation here?
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_STORED, null, $Callback, $Private);
             });
-          });
+          }, null, $Request);
         
         // Remove this resource
         case $Request::METHOD_DELETE:
@@ -911,7 +911,8 @@
                   
                   // Try to finalize
                   call_user_func ($Finalize);
-                }
+                }, null,
+                $Request
               );
             }
             
@@ -965,7 +966,7 @@
                 return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CREATED, array ('Location' => $URI), $Callback, $Private);
               
               return $this->handleRepresentation ($Request, $Resource, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_CREATED, array ('Location' => $URI), $Callback, $Private);
-            });
+            }, null, $Request);
             
             # return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CREATED, array ('Location' => $URI), $Callback, $Private);
           }, null, $Request);
@@ -1072,7 +1073,7 @@
                     
                     // Forward the update
                     return $Child->setRepresentation ($currentRepresentation, $func);
-                  });
+                  }, null, $Request);
                 
                 // Treat the update as a complete Representation
                 return $Child->setRepresentation ($childRepresentation, $func);

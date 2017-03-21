@@ -49,7 +49,8 @@
      * Retrive a representation of this resource
      * 
      * @param callable $Callback A callback to fire once the operation was completed
-     * @param mixed $Private (optional) Some private data to pass to the callback   
+     * @param mixed $Private (optional) Some private data to pass to the callback
+     * @param qcREST_Interface_Request $Request (optional) A Request-Object associated with this call
      * 
      * The callback will be raised once the operation was completed in the form of:
      *    
@@ -58,7 +59,7 @@
      * @access public
      * @return bool  
      **/  
-    public function getRepresentation (callable $Callback, $Private = null) {
+    public function getRepresentation (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
       // Prepare the attributes
       $Counter = count ($this->Resources);
       $Attributes = array (
@@ -89,7 +90,7 @@
           // Check if we have finished
           if (--$Counter == 0)
             call_user_func ($Callback, $this, new qcREST_Representation ($Attributes), $Private);
-        });
+        }, null, $Request);
       
       return true;
     }
