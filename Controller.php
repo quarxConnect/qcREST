@@ -293,7 +293,7 @@
      *   function (qcREST_Interface_Controller $Self, qcREST_Interface_Request $Request = null, qcREST_Interface_Response $Response = null, bool $Status, mixed $Private = null) { }
      * 
      * @access public
-     * @return bool
+     * @return void
      **/
     public function handle (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
       // Make sure we have a request-object
@@ -537,7 +537,7 @@
      * @param mixed $Private (optional)
      * 
      * @access private
-     * @return bool
+     * @return void
      **/
     private function handleResourceRequest (qcREST_Interface_Resource $Resource, qcREST_Interface_Request $Request, qcREST_Interface_Representation $Representation = null, qcREST_Interface_Processor $outputProcessor, callable $Callback, $Private = null) {
       switch ($Request->getMethod ()) {

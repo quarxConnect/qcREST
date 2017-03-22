@@ -98,7 +98,7 @@
      *   function (qcREST_Interface_Controller $Self, qcREST_Interface_Request $Request = null, qcREST_Interface_Response $Response = null, bool $Status, mixed $Private = null) { }
      * 
      * @access public
-     * @return bool
+     * @return void
      **/
     public function handle (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null);
     // }}}

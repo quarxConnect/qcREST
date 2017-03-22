@@ -57,7 +57,7 @@
      *   function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation = null, mixed $Private) { }
      * 
      * @access public
-     * @return bool  
+     * @return void
      **/  
     public function getRepresentation (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
       // Prepare the attributes
@@ -91,8 +91,6 @@
           if (--$Counter == 0)
             call_user_func ($Callback, $this, new qcREST_Representation ($Attributes), $Private);
         }, null, $Request);
-      
-      return true;
     }
     // }}}
     
@@ -138,12 +136,10 @@
      *   function (qcREST_Interface_Resource $Self, qcREST_Interface_Collection $Collection = null, mixed $Private = null) { }
      * 
      * @access public
-     * @return bool
+     * @return void
      **/
     public function getChildCollection (callable $Callback, $Private = null) {
       call_user_func ($Callback, $this, $this, $Private);
-        
-      return false;
     }
     // }}}
     
