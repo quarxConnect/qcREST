@@ -168,10 +168,10 @@
       
       // Check if the call is synchronous
       if (!$this->Async)
-        return $this->forwardResult (call_user_func ($this->Callback, $Representation, $Request), $Callback, $Private);
+        return $this->forwardResult (call_user_func ($this->Callback, $Representation, $Request), false, $Callback, $Private);
       
       return call_user_func ($this->Callback, $Representation, $Request, function ($Result) use ($Callback, $Private) {
-        $this->forwardResult ($Result, $Callback, $Private);
+        $this->forwardResult ($Result, false, $Callback, $Private);
       });
     }
     // }}}
@@ -181,13 +181,19 @@
      * Forward the result of a function-call
      * 
      * @param mixed $Result
-     * @param callable $Callback
-     * @param mixed $Private
+     * @param bool $Short (optional)
+     * @param callable $Callback (optional)
+     * @param mixed $Private (optional)
      *  
      * @access private
      * @return void
      **/
-    private function forwardResult ($Result, callable $Callback = null, $Private = null) {
+    private function forwardResult ($Result, $Short = false, callable $Callback = null, $Private = null) {
+      // Check if we have to do anything
+      if (!$Callback)
+        return;
+      
+      // Process the result
       if ($Result instanceof qcREST_Representation) {
         if (count ($Result) == 0)
           $Result ['Result'] = ($Result->getStatus () < 400);
@@ -202,8 +208,11 @@
         $Result->allowRedirect (false);
       }
       
-      if ($Callback)
-        return call_user_func ($Callback, $this, null, $this, $Result, $Private);
+      // Forward the result
+      if ($Short)
+        return call_user_func ($Callback, $this, $Result, $Private);
+      
+      return call_user_func ($Callback, $this, null, $this, $Result, $Private);
     }
     // }}}
     
@@ -211,24 +220,29 @@
     /**
      * Trigger execution of stored function
      * 
-     * @param array $Params
-     * @param callable $Callback (optional)
-     * @param mixed $Private
+     * @param array $Params Parameters for the call
+     * @param callable $Callback (optional) A callback to forward the result to
+     * @param mixed $Private (optional) Any private data to pass to the callback
+     * @apram qcREST_Interface_Request $Request (optional) A request associated with this call
+     * 
+     * The callback will be raised in the form of:
+     * 
+     *   function (qcREST_Resource_Function $Self, qcREST_Interface_Representation $Result = null, mixed $Private = null) { }
      * 
      * @access public
      * @return void
      **/
-    public function triggerFunction (array $Params, callable $Callback = null, $Private = null) {
+    public function triggerFunction (array $Params, callable $Callback = null, $Private = null, qcREST_Interface_Request $Request = null) {
       // Create Representation
       $Representation = new qcREST_Representation ($Params);
       
       // Check if the call is synchronous
       if (!$this->Async)
-        return $this->forwardResult (call_user_func ($this->Callback, $Representation, null), $Callback, $Private);
+        return $this->forwardResult (call_user_func ($this->Callback, $Representation, $Request), true, $Callback, $Private);
       
       // Call asynchronous
-      return call_user_func ($this->Callback, $Representation, null, function ($Result) use ($Callback, $Private) {
-        $this->forwardResult ($Result, $Callback, $Private);
+      return call_user_func ($this->Callback, $Representation, $Request, function ($Result) use ($Callback, $Private) {
+        $this->forwardResult ($Result, true, $Callback, $Private);
       });
     }
     // }}}
