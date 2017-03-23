@@ -69,6 +69,16 @@
     public function getMeta ($Key = null);
     // }}}
     
+    // {{{ getIP
+    /**
+     * Retrive the IP-Address this request was issued from
+     * 
+     * @access public
+     * @return string
+     **/
+    public function getIP ();
+    // }}}
+    
     // {{{ getUser
     /**
      * Retrive the user that was authenticated with this request

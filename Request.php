@@ -29,6 +29,7 @@
     private $acceptedContentTypes = array ();
     private $authenticatedUser = null;
     private $Meta = array ();
+    private $IP = '';
     
     // {{{ __construct
     /**
@@ -41,11 +42,12 @@
      * @param string $Content The payload from the request
      * @param string $ContentType Type of payload
      * @param array $acceptedContentTypes List of accepted content-types
+     * @param string $IP IP-Address the request was issued from
      * 
      * @access friendly
      * @return void
      **/
-    function __construct ($URI, $Method, array $Parameters, array $Meta, $Content, $ContentType, array $acceptedContentTypes) {
+    function __construct ($URI, $Method, array $Parameters, array $Meta, $Content, $ContentType, array $acceptedContentTypes, $IP) {
       $this->requestURI = $URI;
       $this->requestMethod = $Method;
       $this->requestParameters = $Parameters;
@@ -53,6 +55,7 @@
       $this->requestContentType = $ContentType;
       $this->acceptedContentTypes = $acceptedContentTypes;
       $this->Meta = $Meta;
+      $this->IP = $IP;
     }
     // }}}
     
@@ -107,6 +110,18 @@
       
       if (isset ($this->Meta [$Key]))
         return $this->Meta [$Key];
+    }
+    // }}}
+    
+    // {{{ getIP
+    /**
+     * Retrive the IP-Address this request was issued from
+     * 
+     * @access public
+     * @return string
+     **/
+    public function getIP () {
+      return $this->IP;
     }
     // }}}
     

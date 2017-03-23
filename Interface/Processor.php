@@ -19,7 +19,15 @@
    **/
   
   interface qcREST_Interface_Processor {
+    // {{{ getSupportedContentTypes
+    /**
+     * Retrive a set of MIME-Types supported by this processor
+     * 
+     * @access public
+     * @return array
+     **/
     public function getSupportedContentTypes ();
+    // }}}
     
     // {{{ processInput
     /**
