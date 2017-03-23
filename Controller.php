@@ -544,7 +544,10 @@
         // Generate a normal representation of that resource
         case $Request::METHOD_GET:
           // Make sure this is allowed
-          if (!$Resource->isReadable ($Request->getUser ())) {
+          if (($rc = $Resource->isReadable ($Request->getUser ())) !== true) {
+            if (($rc === null) && ($Request->getUser () === null))
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+            
             if (defined ('QCREST_DEBUG'))
               trigger_error ('Resource is not readable');
             
@@ -580,7 +583,10 @@
         // Change attributes
         case $Request::METHOD_PUT:
           // Make sure this is allowed  
-          if (!$Resource->isWritable ($Request->getUser ())) {
+          if (($rc = $Resource->isWritable ($Request->getUser ())) !== true) {
+            if (($rc === null) && ($Request->getUser () === null))
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+            
             if (defined ('QCREST_DEBUG'))
               trigger_error ('Resource is not writable');
             
@@ -598,7 +604,10 @@
           
         case $Request::METHOD_PATCH:
           // Make sure this is allowed
-          if (!$Resource->isWritable ($Request->getUser ())) {
+          if (($rc = $Resource->isWritable ($Request->getUser ())) !== true) {
+            if (($rc === null) && ($Request->getUser () === null))
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+            
             if (defined ('QCREST_DEBUG'))
               trigger_error ('Resource is not writable (will not patch)');
             
@@ -644,7 +653,10 @@
         // Remove this resource
         case $Request::METHOD_DELETE:
           // Make sure this is allowed
-          if (!$Resource->isRemovable ($Request->getUser ())) {
+          if (($rc = $Resource->isRemovable ($Request->getUser ())) !== true) {
+            if (($rc === null) && ($Request->getUser () === null))
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+            
             if (defined ('QCREST_DEBUG'))
               trigger_error ('Resource may not be removed');
             
@@ -926,7 +938,10 @@
         // Create a new resource on this directory
         case $Request::METHOD_POST:
           // Make sure this is allowed
-          if (!$Collection->isWritable ($Request->getUser ())) {
+          if (($rc = $Collection->isWritable ($Request->getUser ())) !== true) {
+            if (($rc === null) && ($Request->getUser () === null))
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+            
             if (defined ('QCREST_DEBUG'))
               trigger_error ('Collection is not writable');
             
@@ -978,7 +993,10 @@
           
         case $Request::METHOD_PATCH:
           // Make sure this is allowed
-          if (!$Collection->isWritable ($Request->getUser ())) {
+          if (($rc = $Collection->isWritable ($Request->getUser ())) !== true) {
+            if (($rc === null) && ($Request->getUser () === null))
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+            
             if (defined ('QCREST_DEBUG'))
               trigger_error ('Collection is not writable and contents may not be replaced (PUT) or patched (PATCH)');
             
@@ -1105,7 +1123,10 @@
         // Delete the entire collection
         case $Request::METHOD_DELETE:
           // Make sure this is allowed
-          if (!$Collection->isRemovable ($Request->getUser ())) {
+          if (($rc = $Collection->isRemovable ($Request->getUser ())) !== true) {
+            if (($rc === null) && ($Request->getUser () === null))
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+            
             if (defined ('QCREST_DEBUG'))
               trigger_error ('Collection may not be removed');
             
