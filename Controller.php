@@ -1266,7 +1266,7 @@
         $Meta ['WWW-Authenticate'] = $Schemes;
       }
       
-      return $this->sendResponse (new qcREST_Response ($Request, $Status, '', '', $Meta), $Callback, $Private);
+      return $this->sendResponse (new qcREST_Response ($Request, $Status, '', null, $Meta), $Callback, $Private);
     }
     // }}}
   }

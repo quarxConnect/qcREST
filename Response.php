@@ -27,13 +27,31 @@
     private $ContentType = 'application/octet-stream';
     private $Content = '';
     
-    function __construct (qcREST_Interface_Request $Request, $Status, $Content = '', $ContentType = 'application/octet-stream', array $Meta = array ()) {
+    // {{{ __construct
+    /**
+     * Create a new response-object
+     * 
+     * @param qcREST_Interface_Request $Request Request-Object for this response
+     * @param int $Status
+     * @param string $Content (optional)
+     * @param string $ContentType (optional)
+     * @param array $Meta (optional)
+     * 
+     * @access friendly
+     * @return void
+     **/
+    function __construct (qcREST_Interface_Request $Request, $Status, $Content = '', $ContentType = null, array $Meta = array ()) {
+      // Set content-type to some default
+      if ($ContentType === null)
+        $ContentType = 'application/octet-stream';
+      
       $this->Request = $Request;
       $this->Status = (int)$Status;
       $this->Meta = $Meta;
       $this->Content = $Content;
       $this->ContentType = $ContentType;
     }
+    // }}}
     
     // {{{ getRequest
     /**
