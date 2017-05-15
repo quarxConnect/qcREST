@@ -111,11 +111,12 @@
      * 
      * @param qcEvents_Stream_HTTP_Header $Header
      * @param qcEvents_Server_HTTP $Server
+     * @param string $Body (optional)
      * 
      * @access public
      * @return qcREST_Interface_Request
      **/
-    public function getRequestFromHeader (qcEvents_Stream_HTTP_Header $Header, qcEvents_Server_HTTP $Server) {
+    public function getRequestFromHeader (qcEvents_Stream_HTTP_Header $Header, qcEvents_Server_HTTP $Server, $Body = null) {
       // Make sure it's a request
       if (!$Header->isRequest ()) {
         trigger_error ('Presented header is not a request');
@@ -163,7 +164,7 @@
           unset ($Meta [$Key]);
         
         // Check for Content-Type-Header
-        } elseif ((strcasecmp ($Key, 'Content-Type') == 0) && $Header->hasBody ()) {
+        } elseif ((strcasecmp ($Key, 'Content-Type') == 0) && $Body) {
           // Remember the value
           $ContentType = $Value;
           
@@ -175,7 +176,7 @@
         $Types = $this->explodeAcceptHeader ('');
       
       // Finaly create new request
-      return new qcREST_Request ($URI [0], $Method, $URI [1], $Meta, null, $ContentType, $Types, $Server->getRemoteHost ());
+      return new qcREST_Request ($URI [0], $Method, $URI [1], $Meta, $Body, $ContentType, $Types, $Server->getRemoteHost ());
     }
     // }}}
     
@@ -244,7 +245,7 @@
      **/
     public function handleRequest (qcEvents_Server_HTTP $Server, qcEvents_Stream_HTTP_Header $Request, $Body = null) {
       // Try to create a REST-Request
-        if (!is_object ($restRequest = $this->getRequestFromHeader ($Request, $Server))) {
+        if (!is_object ($restRequest = $this->getRequestFromHeader ($Request, $Server, $Body))) {
           // Create Response-Header
           $Response = new qcEvents_Stream_HTTP_Header (array (
             'HTTP/' . $Request->getVersion (true) . ' 500 Internal Server Error',

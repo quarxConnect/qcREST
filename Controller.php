@@ -346,8 +346,12 @@
           // Check if we should expect a request-body
           if (in_array ($Request->getMethod (), array (qcREST_Interface_Request::METHOD_POST, qcREST_Interface_Request::METHOD_PUT, qcREST_Interface_Request::METHOD_PATCH))) {
             // Make sure we have an input-processor
-            if (!$inputProcessor)
+            if (!$inputProcessor) {
+              if (defined ('QCREST_DEBUG'))
+                trigger_error ('No input-processor for request found');
+              
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_ERROR, null, $Callback, $Private);
+            }
             
             // Make sure the request-body is present
             elseif (($Input = $Request->getContent ()) === null)
@@ -358,11 +362,14 @@
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_ERROR, null, $Callback, $Private);
           
           // ... or fail if there is content on the request
-          } elseif ($Request->getContent () !== null)
+          } elseif ($Request->getContent () !== null) {
+            if (defined ('QCREST_DEBUG'))
+              trigger_error ('Content on request where none is expected');
+            
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_ERROR, null, $Callback, $Private);
           
           // Just make sure $Representation is set
-          else
+          } else
             $Representation = null;
           
           // Check if the resolver found a collection
