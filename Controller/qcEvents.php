@@ -168,6 +168,12 @@
           // Remember the value
           $ContentType = $Value;
           
+          if (($p = strpos ($ContentType, ';')) !== false) {
+            $ContentExtra = trim (substr ($ContentType, $p + 1));
+            $ContentType = substr ($ContentType, 0, $p);
+          } else
+            $ContentExtra = null;
+          
           // Strip off from Meta
           unset ($Meta [$Key]);
         }
