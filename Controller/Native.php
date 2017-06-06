@@ -204,9 +204,19 @@
       
       // Generate output
       $Status = true;
+      $Meta = $Response->getMeta ();
       
-      foreach ($Response->getMeta () as $Key=>$Value)
+      foreach ($Meta as $Key=>$Value)
         if (is_array ($Value))
+          foreach ($Value as $Val)
+            header ($Key . ': ' . $Val, false);
+        else
+          header ($Key. ': ' . $Value);
+      
+      foreach ($this->getMeta ($Response) as $Key=>$Value)
+        if (isset ($Meta [$Key]))
+          continue;
+        elseif (is_array ($Value))
           foreach ($Value as $Val)
             header ($Key . ': ' . $Val, false);
         else

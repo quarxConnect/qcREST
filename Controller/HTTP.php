@@ -22,37 +22,11 @@
   require_once ('qcREST/Interface/Response.php');
   
   abstract class qcREST_Controller_HTTP extends qcREST_Controller {
-    // {{{ getStatusCodeDescription
-    /**
-     * Retrive a desciptive text for a status-code
-     * 
-     * @param int $Code
-     * 
-     * @access public
-     * @return string
-     **/
-    public function getStatusCodeDescription ($Code) {
-      // Description-Mapping
-      static $codeMap = array (   
-        qcREST_Interface_Response::STATUS_OK => 'Okay',
-        qcREST_Interface_Response::STATUS_CREATED => 'Resource was created',
-        qcREST_Interface_Response::STATUS_NOT_FOUND => 'Resource could not be found',
-        qcREST_Interface_Response::STATUS_NOT_ALLOWED => 'Operation is not allowed', 
-        qcREST_Interface_Response::STATUS_CLIENT_ERROR => 'There was an error with your request',
-        qcREST_Interface_Response::STATUS_FORMAT_UNSUPPORTED => 'Unsupported Input-Format',
-        qcREST_Interface_Response::STATUS_FORMAT_REJECTED => 'Input-Format was rejected by the resource',
-        qcREST_Interface_Response::STATUS_NO_FORMAT => 'No processor for the requested output-format was found',
-        # qcREST_Interface_Response::STATUS_UNNAMED_CHILD_ERROR => '',
-        qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED => 'You need to authenticate',
-        qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED => 'You are not authorized to access this resource',
-        qcREST_Interface_Response::STATUS_UNSUPPORTED => 'Operation is not supported',
-        qcREST_Interface_Response::STATUS_ERROR => 'An internal error happened',
-      );
-      
-      if (isset ($codeMap [$Code]))
-        return $codeMap [$Code];
-    }
-    // }}}
+    /* Timeout for CORS-Informations */
+    private $corsTimeout = 86400;
+    
+    /* List of allowed origins */
+    private $corsOrigins = array ();
     
     // {{{ explodeURI
     /**
@@ -138,6 +112,116 @@
       
       // Return the result
       return $Types;
+    }
+    // }}}
+    
+    // {{{ getStatusCodeDescription
+    /**
+     * Retrive a desciptive text for a status-code
+     * 
+     * @param int $Code
+     * 
+     * @access public
+     * @return string
+     **/
+    public function getStatusCodeDescription ($Code) {
+      // Description-Mapping
+      static $codeMap = array (
+        qcREST_Interface_Response::STATUS_OK => 'Okay',
+        qcREST_Interface_Response::STATUS_CREATED => 'Resource was created',
+        qcREST_Interface_Response::STATUS_NOT_FOUND => 'Resource could not be found',
+        qcREST_Interface_Response::STATUS_NOT_ALLOWED => 'Operation is not allowed',
+        qcREST_Interface_Response::STATUS_CLIENT_ERROR => 'There was an error with your request',
+        qcREST_Interface_Response::STATUS_FORMAT_UNSUPPORTED => 'Unsupported Input-Format',
+        qcREST_Interface_Response::STATUS_FORMAT_REJECTED => 'Input-Format was rejected by the resource',
+        qcREST_Interface_Response::STATUS_NO_FORMAT => 'No processor for the requested output-format was found',
+        # qcREST_Interface_Response::STATUS_UNNAMED_CHILD_ERROR => '',
+        qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED => 'You need to authenticate',
+        qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED => 'You are not authorized to access this resource',
+        qcREST_Interface_Response::STATUS_UNSUPPORTED => 'Operation is not supported',
+        qcREST_Interface_Response::STATUS_ERROR => 'An internal error happened',
+      );
+      
+      if (isset ($codeMap [$Code]))
+        return $codeMap [$Code];
+    }
+    // }}}
+    
+    // {{{ getMeta
+    /**
+     * Retrive meta-data from this controller
+     * 
+     * @param qcREST_Interface_Response $Response
+     * 
+     * @access protected
+     * @return array
+     **/
+    protected function getMeta (qcREST_Interface_Response $Response) {
+      $Headers = array (
+        'Access-Control-Allow-Method' => 'GET, POST, PUT, PATCH, DELETE', # HEAD / OPTIONS not implemented on controller
+        'Access-Control-Allow-Credentials' => 'true',
+        'Vary' => array (),
+      );
+      
+      // Append Timeout
+      if ($this->corsTimeout > 0)
+        $Headers ['Access-Control-Max-Age'] = $this->corsTimeout;
+      
+      // Append allowed origins
+      if (count ($this->corsOrigins) > 0) {
+        // Retrive the initial request
+        $Request = $Response->getRequest ();
+        
+        // Look for an origin-header on the request
+        if (!($Origin = $Request->getMeta ('Origin')) || !in_array (strtolower ($Origin), $this->corsOrigins))
+          foreach ($this->corsOrigins as $Origin)
+            break;
+        
+        // Append header
+        $Headers ['Access-Control-Allow-Origin'] = $Origin;
+        $Headers ['Vary'][] = 'Origin';
+      } else
+        $Headers ['Access-Control-Allow-Origin'] = '*';
+      
+      // Check if anything varys
+      if (count ($Headers ['Vary']) < 1)
+        unset ($Headers ['Vary']);
+      
+      // Return the headers
+      return $Headers;
+    }
+    // }}}
+    
+    // {{{ setCORSTimeout
+    /**
+     * Set the timeout for CORS-Information
+     * 
+     * @param int $Timeout
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setCORSTimeout ($Timeout) {
+      $this->corsTimeout = (int)$Timeout;
+    }
+    // }}}
+    
+    // {{{ addCORSOrigin
+    /**
+     * Append an Origin to the list of allowed origins
+     * 
+     * @param string $Origin
+     * 
+     * @access public
+     * @return void
+     **/
+    public function addCORSOrigin ($Origin) {
+      // Try to parse the URL
+      if (!($Origin = parse_url ($Origin)) || !isset ($Origin ['scheme']) || !isset ($Origin ['host']))
+        return trigger_error ('Invalid origin');
+      
+      // Append to our list
+      $this->corsOrigins [] = strtolower ($Origin ['scheme'] . '://' . $Origin ['host']) . (isset ($Origin ['port']) ? ':' . $Origin ['port'] : '');
     }
     // }}}
   }

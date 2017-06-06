@@ -206,6 +206,10 @@
       foreach ($Response->getMeta () as $Key=>$Value)
         $httpResponse->setField ($Key, $Value);
       
+      foreach ($this->getMeta ($Response) as $Key=>$Value)
+        if (!$httpResponse->hasField ($Key))
+          $httpResponse->setField ($Key, $Value);
+      
       // Return the result
       return $httpResponse;
     }
