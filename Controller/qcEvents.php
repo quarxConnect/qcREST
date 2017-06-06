@@ -205,10 +205,12 @@
       $httpResponse = new qcEvents_Stream_HTTP_Header (array (
         'HTTP/' . ($Request ? $Request->getVersion (true) : '1.1') . ' ' . $statusCode . ($statusText !== null ? ' ' . $statusText : ''),
         'Server: ' . self::SIGNATURE,
-        'Content-Type: ' . $Response->getContentType (),
       ));
       
       // Append Meta
+      if ($ContentType = $Response->getContentType ())
+        $httpResponse->setField ('Content-Type', $ContentType);
+      
       foreach ($Response->getMeta () as $Key=>$Value)
         $httpResponse->setField ($Key, $Value);
       

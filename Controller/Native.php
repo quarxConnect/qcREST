@@ -228,13 +228,15 @@
       header ('HTTP/1.1 ' . $statusCode . ($statusText !== null ? ' ' . $statusText : ''));
       header ('Status: ' . $statusCode . ($statusText !== null ? ' ' . $statusText : ''));
       header ('X-Powered-By: qcREST/0.2 for CGI');
-      header ('Content-Type: ' . $Response->getContentType ());
       
-      $Content = $Response->getContent ();
+      if ($ContentType = $Response->getContentType ())
+        header ('Content-Type: ' . $ContentType);
       
-      header ('Content-Length: ' . strlen ($Content));
-      
-      echo $Content;
+      if (($Content = $Response->getContent ()) !== null) {
+        header ('Content-Length: ' . strlen ($Content));
+        
+        echo $Content;
+      }
       
       // Raise callback if one was given
       if ($Callback)

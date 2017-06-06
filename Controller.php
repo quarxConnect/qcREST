@@ -676,11 +676,43 @@
             
             return $this->respondStatus ($Request, ($Status ? qcREST_Interface_Response::STATUS_REMOVED : qcREST_Interface_Response::STATUS_ERROR), null, $Callback, $Private);
           });
+        // Output Meta-Information for this resource
+        case $Request::METHOD_OPTIONS:
+          // Collect usable methods
+          $Methods = array ('OPTIONS');
+          $User = $Request->getUser ();
+          
+          if ($Resource->isReadable ($User) === true)
+            $Methods [] = 'GET';
+          
+          if ($Resource->isWritable ($User) === true) {
+            $Methods [] = 'PUT';
+            $Methods [] = 'PATCH';
+          }
+          
+          if ($Resource->isRemovable ($User) === true)
+            $Methods [] = 'DELETE';
+          
+          // Try to get child-collection
+          return $Resource->getChildCollection (
+            function (qcREST_Interface_Resource $Self, qcREST_Interface_Collection $Collection = null)
+            use ($Request, $User, $Methods, $Callback, $Private) {
+              if ($Collection && $Collection->isWritable ($User))
+                $Methods [] = 'POST';
+              
+              return $this->respondStatus (
+                $Request,
+                qcREST_Interface_Response::STATUS_OK,
+                array ('Access-Control-Allow-Methods' => implode (', ', $Methods)),
+                $Callback,
+                $Private
+              );
+            }
+          );
       }
       
       # TODO: Unsupported methods here
       #   METHOD_HEAD
-      #   METHOD_OPTIONS
       
       return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_UNSUPPORTED, null, $Callback, $Private);
     }
@@ -1143,11 +1175,36 @@
           return $Collection->remove (function (qcREST_Interface_Resource $Self, $Status) use ($Request, $Callback, $Private) {
             return $this->respondStatus ($Request, ($Status ? qcREST_Interface_Response::STATUS_OK : qcREST_Interface_Response::STATUS_ERROR), null, $Callback, $Private);
           });
+        // Output Meta-Information for this resource
+        case $Request::METHOD_OPTIONS:
+          // Collect usable methods
+          $Methods = array ('OPTIONS');
+          $User = $Request->getUser ();
+          
+          if ($Collection->isBrowsable ($User) === true)
+            $Methods [] = 'GET';
+          
+          if ($Collection->isWritable ($User) === true) {
+            $Methods [] = 'POST';
+            $Methods [] = 'PUT';
+            $Methods [] = 'PATCH';
+          }
+          
+          if ($Collection->isRemovable ($User) === true)
+            $Methods [] = 'DELETE';
+     
+          // Return the status
+          return $this->respondStatus (
+            $Request,
+            qcREST_Interface_Response::STATUS_OK,
+            array ('Access-Control-Allow-Methods' => implode (', ', $Methods)),
+            $Callback,
+            $Private
+          );
       }
       
       # TODO: Unsupported methods here
       #   METHOD_HEAD
-      #   METHOD_OPTIONS
       
       return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_UNSUPPORTED, null, $Callback, $Private);
     }
@@ -1273,7 +1330,7 @@
         $Meta ['WWW-Authenticate'] = $Schemes;
       }
       
-      return $this->sendResponse (new qcREST_Response ($Request, $Status, '', null, $Meta), $Callback, $Private);
+      return $this->sendResponse (new qcREST_Response ($Request, $Status, null, null, $Meta), $Callback, $Private);
     }
     // }}}
   }

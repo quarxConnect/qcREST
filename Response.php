@@ -42,7 +42,7 @@
      **/
     function __construct (qcREST_Interface_Request $Request, $Status, $Content = '', $ContentType = null, array $Meta = array ()) {
       // Set content-type to some default
-      if ($ContentType === null)
+      if (($ContentType === null) && ($Request->getMethod () != $Request::METHOD_OPTIONS))
         $ContentType = 'application/octet-stream';
       
       $this->Request = $Request;

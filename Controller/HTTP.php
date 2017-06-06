@@ -158,22 +158,24 @@
      **/
     protected function getMeta (qcREST_Interface_Response $Response) {
       $Headers = array (
-        'Access-Control-Allow-Method' => 'GET, POST, PUT, PATCH, DELETE', # HEAD / OPTIONS not implemented on controller
+        'Access-Control-Allow-Methods' => 'GET, POST, PUT, PATCH, DELETE, OPTIONS', # HEAD is not implemented on controller
         'Access-Control-Allow-Credentials' => 'true',
-        'Vary' => array (),
+        'Vary' => array ('Accept'),
       );
       
       // Append Timeout
       if ($this->corsTimeout > 0)
         $Headers ['Access-Control-Max-Age'] = $this->corsTimeout;
       
+      // Retrive the initial request
+      $Request = $Response->getRequest ();
+      
       // Append allowed origins
-      if (count ($this->corsOrigins) > 0) {
-        // Retrive the initial request
-        $Request = $Response->getRequest ();
-        
+      $Origin = $Request->getMeta ('Origin');
+      
+      if ($Origin || (count ($this->corsOrigins) > 0)) {
         // Look for an origin-header on the request
-        if (!($Origin = $Request->getMeta ('Origin')) || !in_array (strtolower ($Origin), $this->corsOrigins))
+        if (!$Origin || !in_array (strtolower ($Origin), $this->corsOrigins))
           foreach ($this->corsOrigins as $Origin)
             break;
         
@@ -183,9 +185,15 @@
       } else
         $Headers ['Access-Control-Allow-Origin'] = '*';
       
+      // Echo back requested headers
+      if ($Meta = $Request->getMeta ('Access-Control-Request-Headers'))
+        $Headers ['Access-Control-Allow-Headers'] = $Meta;
+      
       // Check if anything varys
       if (count ($Headers ['Vary']) < 1)
         unset ($Headers ['Vary']);
+      else
+        $Headers ['Vary'] = implode (', ', $Headers ['Vary']);
       
       // Return the headers
       return $Headers;
