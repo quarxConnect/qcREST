@@ -386,7 +386,13 @@
             return $this->handleResourceRequest ($Resource, $Request, $Representation, $outputProcessor, $Callback, $Private);
           
           // Return if the resolver did not find anything
-          return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_FOUND, null, $Callback, $Private);
+          return $this->respondStatus (
+            $Request,
+            ($Request->getMethod () == $Request::METHOD_OPTIONS ? qcREST_Interface_Response::STATUS_OK : qcREST_Interface_Response::STATUS_NOT_FOUND),
+            null,
+            $Callback,
+            $Private
+          );
         }, null, $Request); // resolveURI()
       }); // authenticateRequest()
     }

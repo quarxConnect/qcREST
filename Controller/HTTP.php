@@ -160,7 +160,7 @@
       $Headers = array (
         'Access-Control-Allow-Methods' => 'GET, POST, PUT, PATCH, DELETE, OPTIONS', # HEAD is not implemented on controller
         'Access-Control-Allow-Credentials' => 'true',
-        'Vary' => array ('Accept'),
+        'Vary' => array ('Accept', 'Authorization'),
       );
       
       // Append Timeout
