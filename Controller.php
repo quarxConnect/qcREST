@@ -172,34 +172,6 @@
     abstract public function getURI ();
     // }}}
     
-    // {{{ getRequest
-    /**
-     * Generate a Request-Object for a pending request
-     * 
-     * @access public
-     * @return qcREST_Interface_Request
-     **/
-    abstract public function getRequest ();
-    // }}}
-    
-    // {{{ setResponse
-    /**
-     * Write out a response for a previous request
-     * 
-     * @param qcREST_Interface_Response $Response
-     * @param callable $Callback (optional) A callback to raise once the operation was completed
-     * @param mixed $Private (optional) Any private data to pass to the callback
-     * 
-     * The callback will be raised once the operation was finished in the form of
-     * 
-     *   function (qcREST_Interface_Controller $Self, qcREST_Interface_Response $Response, bool $Status, mixed $Private) { }
-     * 
-     * @access public
-     * @return bool
-     **/
-    abstract public function setResponse (qcREST_Interface_Response $Response, callable $Callback = null, $Private = null);
-    // }}}
-    
     // {{{ httpHeaderParameters
     /**
      * Parse/Explode Parameters from a HTTP-Header
