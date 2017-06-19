@@ -30,6 +30,7 @@
     private $authenticatedUser = null;
     private $Meta = array ();
     private $IP = '';
+    private $TLS = false;
     
     // {{{ __construct
     /**
@@ -43,11 +44,12 @@
      * @param string $ContentType Type of payload
      * @param array $acceptedContentTypes List of accepted content-types
      * @param string $IP IP-Address the request was issued from
+     * @param bool $TLS The request was made using TLS-Encryption (optional)
      * 
      * @access friendly
      * @return void
      **/
-    function __construct ($URI, $Method, array $Parameters, array $Meta, $Content, $ContentType, array $acceptedContentTypes, $IP) {
+    function __construct ($URI, $Method, array $Parameters, array $Meta, $Content, $ContentType, array $acceptedContentTypes, $IP, $TLS = false) {
       $this->requestURI = $URI;
       $this->requestMethod = $Method;
       $this->requestParameters = $Parameters;
@@ -56,6 +58,7 @@
       $this->acceptedContentTypes = $acceptedContentTypes;
       $this->Meta = $Meta;
       $this->IP = $IP;
+      $this->TLS = !!$TLS;
     }
     // }}}
     
@@ -122,6 +125,18 @@
      **/
     public function getIP () {
       return $this->IP;
+    }
+    // }}}
+    
+    // {{{ isTLS
+    /**
+     * Check if the request was made using TLS-encryption
+     * 
+     * @access public
+     * @return bool
+     **/
+    public function isTLS () {
+      return $this->TLS;
     }
     // }}}
     

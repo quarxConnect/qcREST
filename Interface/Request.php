@@ -79,6 +79,16 @@
     public function getIP ();
     // }}}
     
+    // {{{ isTLS
+    /**
+     * Check if the request was made using TLS-encryption
+     * 
+     * @access public
+     * @return bool
+     **/
+    public function isTLS ();
+    // }}}
+    
     // {{{ getUser
     /**
      * Retrive the user that was authenticated with this request
