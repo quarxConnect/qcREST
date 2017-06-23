@@ -70,7 +70,20 @@
      * @access public
      * @return array
      **/
-    public function getMeta ();
+    public function getMeta ($Key = null);
+    // }}}
+    
+    // {{{ setMeta
+    /**
+     * Set new meta-data for this response
+     * 
+     * @param string $Key
+     * @param mixed $Value
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setMeta ($Key, $Value);
     // }}}
     
     // {{{ getContentType

@@ -81,14 +81,35 @@
     /**
      * Retrive the meta-data of this response
      * 
+     * @param string $Key (optional)
+     * 
      * @access public
      * @return array
      **/
-    public function getMeta () {
-      return $this->Meta;
+    public function getMeta ($Key = null) {
+      if ($Key === null)
+        return $this->Meta;
+      
+      if (isset ($this->Meta [$Key]))
+        return $this->Meta [$Key];
     }
     // }}}
-
+    
+    // {{{ setMeta
+    /**
+     * Set new meta-data for this response
+     * 
+     * @param string $Key
+     * @param mixed $Value
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setMeta ($Key, $Value) {
+      $this->Meta [strval ($Key)] = $Value;
+    }
+    // }}}
+    
     // {{{ getContentType
     /**
      * Retrive the content-type of the response

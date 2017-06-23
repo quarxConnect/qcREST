@@ -1269,6 +1269,21 @@
      * @return void
      **/
     private function sendResponse (qcREST_Interface_Response $Response, callable $Callback, $Private = null) {
+      // Append some meta for unauthenticated status
+      if ($Response->getStatus () == qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED) {
+        if ($Schemes = $Response->getMeta ('WWW-Authenticate'))
+          $Schemes = (is_array ($Schemes) ? $Schemes : array ($Schemes));
+        else
+          $Schemes = array ();
+        
+        foreach ($this->Authenticators as $Authenticator)
+          foreach ($Authenticator->getSchemes () as $aScheme) 
+            if (isset ($aScheme ['scheme']))
+              $Schemes [] = $aScheme ['scheme'] . ' realm="' . (isset ($aScheme ['realm']) ? $aScheme ['realm'] : get_class ($Authenticator)) . '"';
+        
+        $Response->setMeta ('WWW-Authenticate', $Schemes);
+      }
+      
       return $this->setResponse ($Response, function (qcREST_Interface_Controller $Self, qcREST_Interface_Response $Response, $Status) use ($Callback, $Private) {
         call_user_func ($Callback, $this, $Response->getRequest (), $Response, $Status, $Private);
       });
@@ -1292,21 +1307,6 @@
       // Make sure meta is valid
       if ($Meta === null)
         $Meta = array ();
-      
-      // Append some meta for unauthenticated status
-      if ($Status == qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED) {
-        if (isset ($Meta ['WWW-Authenticate']))
-          $Schemes = (is_array ($Meta ['WWW-Authenticate']) ? $Meta ['WWW-Authenticate'] : array ($Meta ['WWW-Authenticate']));
-        else
-          $Schemes = array ();
-        
-        foreach ($this->Authenticators as $Authenticator)
-          foreach ($Authenticator->getSchemes () as $aScheme) 
-            if (isset ($aScheme ['scheme']))
-              $Schemes [] = $aScheme ['scheme'] . ' realm="' . (isset ($aScheme ['realm']) ? $aScheme ['realm'] : get_class ($Authenticator)) . '"';
-        
-        $Meta ['WWW-Authenticate'] = $Schemes;
-      }
       
       return $this->sendResponse (new qcREST_Response ($Request, $Status, null, null, $Meta), $Callback, $Private);
     }
