@@ -524,6 +524,7 @@
       switch ($Request->getMethod ()) {
         // Generate a normal representation of that resource
         case $Request::METHOD_GET:
+        case $Request::METHOD_HEAD:
           // Make sure this is allowed
           if (($rc = $Resource->isReadable ($Request->getUser ())) !== true) {
             if (($rc === null) && ($Request->getUser () === null))
@@ -685,9 +686,6 @@
           );
       }
       
-      # TODO: Unsupported methods here
-      #   METHOD_HEAD
-      
       return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_UNSUPPORTED, null, $Callback, $Private);
     }
     // }}}
@@ -711,6 +709,7 @@
       switch ($Request->getMethod ()) {
         // Retrive a listing of resources on this directory
         case $Request::METHOD_GET:
+        case $Request::METHOD_HEAD:
           // Make sure we may list the contents
           if (($rc = $Collection->isBrowsable ($Request->getUser ())) !== true) {
             if (($rc === null) && ($Request->getUser () === null))
@@ -1177,9 +1176,6 @@
           );
       }
       
-      # TODO: Unsupported methods here
-      #   METHOD_HEAD
-      
       return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_UNSUPPORTED, null, $Callback, $Private);
     }
     // }}}
@@ -1224,7 +1220,7 @@
         unset ($Meta ['Location']);
       
       // Just pass the status if the representation is empty
-      if (count ($Representation) == 0)
+      if ((count ($Representation) == 0) || ($Request->getMethod () == $Request::METHOD_HEAD))
         return $this->respondStatus ($Request, $Status, $Meta, $Callback, $Private);
       
       // Process the output
