@@ -292,7 +292,7 @@
           $Request->setUser ($User);
         
         // Try to resolve to a resource
-        return $this->resolveURI ($Request->getURI (), function (qcREST_Interface_Controller $Self, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null) use ($Request, $Callback, $Private) {
+        return $this->resolveURI ($Request->getURI (), function (qcREST_Interface_Controller $Self, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null, $Segment = null) use ($Request, $Callback, $Private) {
           // Check if there is a request-body
           if (($cType = $Request->getContentType ()) !== null) {
             // Make sure we have a processor for this
@@ -345,13 +345,8 @@
             $Representation = null;
           
           // Check if the resolver found a collection
-          if ($Collection !== null) {
-            // Check if the resolver reached the final point
-            if ($Resource !== null)
-              return $this->handleCollectionRequest ($Resource, $Collection, $Request, $Representation, $outputProcessor, $Callback, $Private);
-            
-            # TODO: Handle ($Collection !== null) && ($Resource === null)
-          }
+          if ($Collection !== null)
+            return $this->handleCollectionRequest ($Resource, $Collection, $Request, $Representation, $outputProcessor, $Segment, $Callback, $Private);
           
           // Check if the resource found a resource
           if ($Resource !== null)
@@ -380,7 +375,7 @@
      * 
      * The callback will be raised in the form of
      * 
-     *   function (qcREST_Interface_Controller $Self, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null, mixed $Private = null) { }
+     *   function (qcREST_Interface_Controller $Self, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null, string $Segment = null, mixed $Private = null) { }
      * 
      * After a successfull resolve $Resource will be filled with a valid REST-Resource.
      * If the URI points to a collection $Collection will be filled either.
@@ -394,11 +389,11 @@
     private function resolveURI ($URI, callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
       // Make sure we have a root assigned
       if ($this->Root === null)
-        return call_user_func ($Callback, $this, null, null, $Private);
+        return call_user_func ($Callback, $this, null, null, null, $Private);
       
       // Check if this is a request for our root
       if (strlen ($URI) == 0)
-        return call_user_func ($Callback, $this, $this->Root, null, $Private);
+        return call_user_func ($Callback, $this, $this->Root, null, null, $Private);
       
       $iPath = explode ('/', substr ($URI, 1));
       $lPath = count ($iPath);
@@ -414,16 +409,18 @@
         if ($Result instanceof qcREST_Interface_Collection) {
           // Check wheter to lookup a further child
           if ((count ($Path) == 1) && (strlen ($Path [0]) == 0))
-            return call_user_func ($Callback, $this, $Self, $Result, $Private);
+            return call_user_func ($Callback, $this, $Self, $Result, null, $Private);
           
           // Try to lookup the next child
-          return $Result->getChild (array_shift ($Path), $rFunc, null, $Request);
+          $Next = array_shift ($Path);
+          
+          return $Result->getChild ($Next, $rFunc, array ($Self, $Next), $Request);
           
         // A child of a collection was returned
         } elseif ($Result instanceof qcREST_Interface_Resource) {
           // Check if we reached the end
           if (count ($Path) == 0)
-            return call_user_func ($Callback, $this, $Result, null, $Private);
+            return call_user_func ($Callback, $this, $Result, null, null, $Private);
           
           // Try to retrive the child-collection of this resource
           return $Result->getChildCollection ($rFunc);
@@ -433,19 +430,9 @@
           // Check wheter we should create a new child by that name
           # TODO: Create intermediate children if count($Path)>0   
           if ((count ($Path) != 0) || !($Request->getMethod () == $Request::METHOD_PUT))
-            return call_user_func ($Callback, $this, null, null, $Private);
+            return call_user_func ($Callback, $this, null, null, null, $Private);
           
-          // Try to create the child
-          # TODO
-          #return $Self->createChild ($Representation, $Name, function (qcREST_Interface_Collection $Self, $Name = null, qcREST_Interface_Resource $Child =
-          #  // Check if Child count not be created or attributes were rejected
-          #  if (!$Child)
-          #    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, null, $Callback, $Private);
-          #  
-          #  # TODO: Respond with STATUS_CREATED and Location
-          #  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CREATED, null, $Callback, $Private);
-          #});
-          return call_user_func ($Callback, $this, null, $Self, $Private);
+          return call_user_func ($Callback, $this, $Data [0], $Self, $Data [1], $Private);
         
         // A collection was not available
         } else {
@@ -454,7 +441,7 @@
           #  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           
           # return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_FOUND, null, $Callback, $Private);
-          return call_user_func ($Callback, $this, null, null, $Private);
+          return call_user_func ($Callback, $this, null, null, null, $Private);
         }
       }; 
       
@@ -559,7 +546,7 @@
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
             }
             
-            return $this->handleCollectionRequest ($Self, $Collection, $Request, $Representation, $outputProcessor, $Callback, $Private);
+            return $this->handleCollectionRequest ($Self, $Collection, $Request, $Representation, $outputProcessor, null, $Callback, $Private);
           });
         
         // Change attributes
@@ -699,14 +686,29 @@
      * @param qcREST_Interface_Request $Request
      * @param qcREST_Interface_Representation $Representation (optional)
      * @param qcREST_Interface_Processor $outputProcessor
+     * @param string $Segment (optional)
      * @param callable $Callback
      * @param mixed $Private (optional)
      * 
      * @access private
      * @return bool
      **/
-    private function handleCollectionRequest (qcREST_Interface_Resource $Resource, qcREST_Interface_Collection $Collection, qcREST_Interface_Request $Request, qcREST_Interface_Representation $Representation = null, qcREST_Interface_Processor $outputProcessor, callable $Callback, $Private = null) {
-      switch ($Request->getMethod ()) {
+    private function handleCollectionRequest (qcREST_Interface_Resource $Resource, qcREST_Interface_Collection $Collection, qcREST_Interface_Request $Request, qcREST_Interface_Representation $Representation = null, qcREST_Interface_Processor $outputProcessor, $Segment = null, callable $Callback, $Private = null) {
+      // Retrive the requested method
+      $Method = $Request->getMethod ();
+      
+      // Check if there was a segment left on the request
+      if ($Segment !== null) {
+        // Only allow segment on PUT
+        if ($Method != $Request::METHOD_PUT)
+          return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_FOUND, null, $Callback, $Private);
+        
+        // Rewrite to POST
+        $Method = $Request::METHOD_POST;
+      }
+      
+      // Try to process the request
+      switch ($Method) {
         // Retrive a listing of resources on this directory
         case $Request::METHOD_GET:
         case $Request::METHOD_HEAD:
@@ -961,7 +963,7 @@
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           }
           
-          return $Collection->createChild ($Representation, null, function (qcREST_Interface_Collection $Self, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null) use ($outputProcessor, $Callback, $Private, $Request, $Resource) {
+          return $Collection->createChild ($Representation, $Segment, function (qcREST_Interface_Collection $Self, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null) use ($outputProcessor, $Callback, $Private, $Request, $Resource) {
             // Check if a new child was created
             if (!$Child) {
               if ($Representation)
