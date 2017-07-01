@@ -124,7 +124,7 @@
      *   function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation, bool $Status, mixed $Private) { }
      * 
      * @access public
-     * @return bool
+     * @return void
      **/
     public function setRepresentation (qcREST_Interface_Representation $Representation, callable $Callback = null, $Private = null);
     // }}}
@@ -141,7 +141,7 @@
      *   function (qcREST_Interface_Resource $Self, bool $Status, mixed $Private) { }
      * 
      * @access public
-     * @return bool  
+     * @return void
      **/
     public function remove (callable $Callback = null, $Private = null);
     // }}}

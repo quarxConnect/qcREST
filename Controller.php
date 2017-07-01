@@ -138,7 +138,7 @@
         return reset ($this->typeMaps [$Major][$Minor]);
       
       if ($Minor == '*')
-        return array_shift (reset ($this->typeMaps [$Major]));
+        return @array_shift (reset ($this->typeMaps [$Major]));
       
       if (isset ($this->typeMaps [$Major]['*']))
         return reset ($this->typeMaps [$Major]['*']);
@@ -334,7 +334,7 @@
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_ERROR, null, $Callback, $Private);
           
           // ... or fail if there is content on the request
-          } elseif ($Request->getContent () !== null) {
+          } elseif (strlen ($Request->getContent ()) > 0) {
             if (defined ('QCREST_DEBUG'))
               trigger_error ('Content on request where none is expected');
             
@@ -409,35 +409,31 @@
           $Path [] = rawurldecode ($iPath [$i]);
       
       $rFunc = null;
-      $rFunc = function ($Self, $P1, $P2) use ($Callback, $Private, $Request, &$Path, &$rFunc) {
+      $rFunc = function ($Self, $Result, $Data = null) use ($Callback, $Private, $Request, &$Path, &$rFunc) {
         // We got a child-collection
-        if ($P1 instanceof qcREST_Interface_Collection) {
+        if ($Result instanceof qcREST_Interface_Collection) {
           // Check wheter to lookup a further child
           if ((count ($Path) == 1) && (strlen ($Path [0]) == 0))
-            return call_user_func ($Callback, $this, $Self, $P1, $Private);
+            return call_user_func ($Callback, $this, $Self, $Result, $Private);
           
           // Try to lookup the next child
-          return $P1->getChild (array_shift ($Path), $rFunc, null, $Request);
+          return $Result->getChild (array_shift ($Path), $rFunc, null, $Request);
           
         // A child of a collection was returned
-        } elseif ($P2 instanceof qcREST_Interface_Resource) {
+        } elseif ($Result instanceof qcREST_Interface_Resource) {
           // Check if we reached the end
           if (count ($Path) == 0)
-            return call_user_func ($Callback, $this, $P2, null, $Private);
+            return call_user_func ($Callback, $this, $Result, null, $Private);
           
           // Try to retrive the child-collection of this resource
-          return $P2->getChildCollection ($rFunc);
+          return $Result->getChildCollection ($rFunc);
           
         // A child could not be returned
         } elseif ($Self instanceof qcREST_Interface_Collection) {
-          // Map the name for better readability
-          $Name = &$P1;
-          
           // Check wheter we should create a new child by that name
           # TODO: Create intermediate children if count($Path)>0   
           if ((count ($Path) != 0) || !($Request->getMethod () == $Request::METHOD_PUT))
             return call_user_func ($Callback, $this, null, null, $Private);
-            # return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_FOUND, null, $Callback, $Private);
           
           // Try to create the child
           # TODO
@@ -700,6 +696,7 @@
     /**
      * Process a request targeted at a directory-resource
      * 
+     * @param qcREST_Interface_Resource $Resource
      * @param qcREST_Interface_Collection $Collection
      * @param qcREST_Interface_Request $Request
      * @param qcREST_Interface_Representation $Representation (optional)
@@ -965,7 +962,7 @@
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           }
           
-          return $Collection->createChild ($Representation, null, function (qcREST_Interface_Collection $Self, $Name = null, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null) use ($outputProcessor, $Callback, $Private, $Request, $Resource) {
+          return $Collection->createChild ($Representation, null, function (qcREST_Interface_Collection $Self, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null) use ($outputProcessor, $Callback, $Private, $Request, $Resource) {
             // Check if a new child was created
             if (!$Child) {
               if ($Representation)
@@ -1052,14 +1049,13 @@
                 $Removals [] = $Child;
             
             $func = null;
-            $func = function ($Self = null, $P1 = null, $P2 = null, $P3 = null) use ($Request, $outputProcessor, $Resource, &$Create, &$Updates, &$Removals, $Representation, &$func, $Callback, $Private) {
+            $func = function ($Self = null, $P1 = null, $P2 = null) use ($Request, $outputProcessor, $Resource, &$Create, &$Updates, &$Removals, $Representation, &$func, $Callback, $Private) {
               // Check if we are returning
               if ($Self) {
                 // Check if we tried to create a child
                 if ($Self === $this) {
-                  $Name = $P1;
-                  $Child = $P2;
-                  $cRepresentation = $P3;
+                  $Child = $P1;
+                  $cRepresentation = $P2;
                   
                   if (!$Child)
                     return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, null, $Callback, $Private);

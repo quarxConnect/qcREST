@@ -82,7 +82,7 @@
      *   function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation, bool $Status, mixed $Private) { }
      * 
      * @access public
-     * @return bool  
+     * @return void
      **/
     public function setRepresentation (qcREST_Interface_Representation $Representation, callable $Callback = null, $Private = null) {
       if ($Callback)
@@ -116,7 +116,7 @@
      *   function (qcREST_Interface_Collection $Self, array $Children = null, mixed $Private) { }
      * 
      * @access public
-     * @return bool
+     * @return void
      **/
     public function getChildren (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
       return call_user_func ($Callback, $this, null, $Private);
@@ -134,13 +134,13 @@
      * 
      * The callback will be raised once the operation was completed in the form of:
      * 
-     *   function (qcREST_Interface_Collection $Self, string $Name, qcREST_Interface_Resource $Child = null, mixed $Private) { }
+     *   function (qcREST_Interface_Collection $Self, qcREST_Interface_Resource $Child = null, mixed $Private) { }
      * 
      * @access public
-     * @return bool
+     * @return void
      **/
     public function getChild ($Name, callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
-      return call_user_func ($Callback, $this, $Name, null, $Private);
+      return call_user_func ($Callback, $this, null, $Private);
     }
     // }}}
     
@@ -156,10 +156,10 @@
      * 
      * The callback will be raised once the operation was completed in the form of:
      * 
-     *   function (qcREST_Interface_Collection $Self, string $Name = null, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null, mixed $Private) { }
+     *   function (qcREST_Interface_Collection $Self qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null, mixed $Private) { }
      * 
      * @access public
-     * @return bool
+     * @return void
      **/
     public function createChild (qcREST_Interface_Representation $Representation, $Name = null, callable $Callback = null, $Private = null, qcREST_Interface_Request $Request = null) {
       // Don't do anything without a valid callback
@@ -212,7 +212,7 @@
       if ($Short)
         return call_user_func ($Callback, $this, $Result, $Private);
       
-      return call_user_func ($Callback, $this, null, $this, $Result, $Private);
+      return call_user_func ($Callback, $this, $this, $Result, $Private);
     }
     // }}}
     

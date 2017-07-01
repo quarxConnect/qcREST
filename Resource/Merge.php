@@ -195,7 +195,7 @@
      *   function (qcREST_Interface_Collection $Self, array $Children = null, mixed $Private) { }
      * 
      * @access public
-     * @return bool
+     * @return void
      **/
     public function getChildren (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
       // Check if we have any entities assigned
@@ -293,25 +293,25 @@
      * 
      * The callback will be raised once the operation was completed in the form of:
      * 
-     *   function (qcREST_Interface_Collection $Self, string $Name, qcREST_Interface_Resource $Child = null, mixed $Private) { }
+     *   function (qcREST_Interface_Collection $Self, qcREST_Interface_Resource $Child = null, mixed $Private) { }
      * 
      * @access public
-     * @return bool
+     * @return void
      **/
     public function getChild ($Name, callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
       # TODO: Speed this up
       return $this->getChildren (function (qcREST_Interface_Collection $Self, array $Resources = null) use ($Name, $Callback, $Private) {
         // Check if the call was successfull
         if (!is_array ($Resources))
-          return call_user_func ($Callback, $this, $Name, null, $Private);
+          return call_user_func ($Callback, $this, null, $Private);
         
         // Check if we have a direct match
         if (isset ($Resources [$Name]))
-          return call_user_func ($Callback, $this, $Name, $Resources [$Name], $Private);
+          return call_user_func ($Callback, $this, $Resources [$Name], $Private);
         
         // Try to split the name up
         if (count ($Names = explode ($this->Separator, $Name)) < 2)
-          return call_user_func ($Callback, $this, $Name, null, $Private);
+          return call_user_func ($Callback, $this, null, $Private);
         
         // Create a new merge
         $Merge = new $this ($Name);
@@ -321,7 +321,7 @@
             $Merge->addResource ($Resources [$Part]);
         
         // Return the lookup-result
-        return call_user_func ($Callback, $this, $Name, ($Merge->hasResources () ? $Merge : null), $Private);
+        return call_user_func ($Callback, $this, ($Merge->hasResources () ? $Merge : null), $Private);
       });
     }
     // }}}
@@ -338,14 +338,14 @@
      * 
      * The callback will be raised once the operation was completed in the form of:
      * 
-     *   function (qcREST_Interface_Collection $Self, string $Name = null, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null, mixed $Private) { }
+     *   function (qcREST_Interface_Collection $Self, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null, mixed $Private) { }
      * 
      * @access public
      * @return bool
      **/
     public function createChild (qcREST_Interface_Representation $Representation, $Name = null, callable $Callback = null, $Private = null, qcREST_Interface_Request $Request = null) {
       if ($Callback)
-        return call_user_func ($Callback, $this, $Name, null, null, $Private);
+        return call_user_func ($Callback, $this, null, null, $Private);
     }
     // }}}
   }
