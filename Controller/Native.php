@@ -121,7 +121,7 @@
       // Check if there is a request-body
       global $HTTP_RAW_POST_DATA;
       
-      if (isset ($_SERVER ['CONTENT_LENGTH']) && ($_SERVER ['CONTENT_LENGTH'] > 0)) {
+      if (isset ($_SERVER ['CONTENT_LENGTH']) && ($_SERVER ['CONTENT_LENGTH'] >= 0)) {
         $Content = (isset ($HTTP_RAW_POST_DATA) ? $HTTP_RAW_POST_DATA : file_get_contents ('php://input'));
         $ContentType = $_SERVER ['CONTENT_TYPE'];
         

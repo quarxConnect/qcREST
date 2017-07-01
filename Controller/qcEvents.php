@@ -150,7 +150,7 @@
       }
       
       // Process headers
-      $Meta = $Header->getFields ();;
+      $Meta = $Header->getFields ();
       $ContentType = null;
       $Types = null;
       
@@ -164,7 +164,7 @@
           unset ($Meta [$Key]);
         
         // Check for Content-Type-Header
-        } elseif ((strcasecmp ($Key, 'Content-Type') == 0) && $Body) {
+        } elseif ((strcasecmp ($Key, 'Content-Type') == 0) && ($Body !== null)) {
           // Remember the value
           $ContentType = $Value;
           
