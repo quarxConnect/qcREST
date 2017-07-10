@@ -713,8 +713,10 @@
         case $Request::METHOD_GET:
         case $Request::METHOD_HEAD:
           // Make sure we may list the contents
-          if (($rc = $Collection->isBrowsable ($Request->getUser ())) !== true) {
-            if (($rc === null) && ($Request->getUser () === null))
+          $User = $Request->getUser ();
+          
+          if (($rc = $Collection->isBrowsable ($User)) !== true) {
+            if (($rc === null) && ($User === null))
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
             
             if (defined ('QCREST_DEBUG'))
@@ -722,6 +724,19 @@
             
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
           }
+          
+          // Save some time on HEAD-Requests
+          if ($Method == $Request::METHOD_HEAD)
+            return $this->respondStatus (
+              $Request,
+              qcREST_Interface_Response::STATUS_OK,
+              array (
+                'X-Resource-Type' => 'Collection',
+                'X-Collection-Class' => get_class ($Collection),
+              ),
+              $Callback,
+              $Private
+            );
           
           // Prepare representation
           $Representation = new qcREST_Representation (array (
@@ -775,7 +790,7 @@
             $Representation->addMeta ('X-Pagination-Performance-Warning', 'Using pagination without support on backend');
           
           // Request the children of this resource
-          return $Collection->getChildren (function (qcREST_Interface_Collection $Collection, array $Children = null) use ($Request, $Resource, $outputProcessor, $Callback, $Private, $First, $Last, $Search, $Sort, $Order, $Representation) {
+          return $Collection->getChildren (function (qcREST_Interface_Collection $Collection, array $Children = null) use ($Request, $User, $Resource, $outputProcessor, $Callback, $Private, $First, $Last, $Search, $Sort, $Order, $Representation) {
             // Check if the call was successfull
             if ($Children !== null) {
               // Determine the total number of children
@@ -899,7 +914,7 @@
               $Extend = false;
             
             // Append children to the listing
-            $Name = $Collection->getNameAttribute ();
+            $Representation ['idAttribute'] = $Name = $Collection->getNameAttribute ();
             $Items = array ();
             $Pos = 0;
             $Last = ($Last === null ? count ($Children) : $Last);
@@ -913,8 +928,18 @@
                   break;
               }
               
-              // Create basic structures
+              // Create basic attributes
               $Items [] = $Item = new stdClass;
+              $Item->_id = $Child->getName ();
+              $Item->_href = $baseURI . rawurlencode ($Item->_id);
+              $Item->_collection = $Child->hasChildCollection ();
+              $Item->_permissions = new stdClass;
+              $Item->_permissions->read = $Child->isReadable ($User);
+              $Item->_permissions->write = $Child->isWritable ($User);
+              $Item->_permissions->delete = $Child->isRemovable ($User);
+              # TODO? Append Permissions for Child-Collections here?
+              
+              // DEPRECATED: Old basic attributes
               $Item->$Name = $Child->getName ();
               $Item->uri = $baseURI . rawurlencode ($Item->$Name);
               $Item->isCollection = $Child->hasChildCollection ();
