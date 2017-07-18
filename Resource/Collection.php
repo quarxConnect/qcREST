@@ -19,6 +19,7 @@
    **/
   
   require_once ('qcREST/Interface/Collection.php');
+  require_once ('qcEvents/Queue.php');
   
   class qcREST_Resource_Collection implements qcREST_Interface_Collection {
     private $Children = array ();
@@ -198,32 +199,15 @@
      * @return void
      **/
     public function getChildren (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
-      // Setup handler
-      $Counter = 1;
-      $Handler = function () use (&$Counter, $Callback, $Private) {
-        // Check if we are ready
-        if (--$Counter > 0)
-          return;
-        
-        call_user_func ($Callback, $this, $this->Children, $Private);
-      };
+      $Queue = new qcEvents_Queue;
+      $Queue->finish (function () use ($Callback, $Private) {
+        return call_user_func ($Callback, $this, $this->Children, $Private);
+      });
       
-      // Process callbacks if registered
-      if (count ($this->Callbacks) > 0) {
-        // Raise all callbacks
-        foreach ($this->Callbacks as $cCallback) {
-          $Counter++;
-          call_user_func ($cCallback [0], $this, null, $this->Children, $Handler, $cCallback [1]);
-        }
-        
-        // Stop here if callbacks are pending
-        if ($Counter-- > 1)
-          return;
-      }
-      
-      // Just call the handler if we get here
-      call_user_func ($Handler);
-      return true;
+      foreach ($this->Callbacks as $cCallback)
+        $Queue->addCall ($cCallback [0], $this, null, $this->Children, null, $cCallback [1]);
+       
+      $Queue->finish ();
     }
     // }}}
     
@@ -244,13 +228,8 @@
      * @return void
      **/
     public function getChild ($Name, callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
-      // Setup handler
-      $Counter = 1;
-      $Handler = function () use (&$Counter, $Name, $Callback, $Private) {
-        // Check if we are ready
-        if (--$Counter > 0)
-          return;
-        
+      $Queue = new qcEvents_Queue;
+      $Queue->finish (function () use ($Name, $Callback, $Private) {
         // Look for a matching child
         foreach ($this->Children as $Child)
           if ($Child->getName () == $Name)
@@ -258,24 +237,12 @@
         
         // Just return nothing
         return call_user_func ($Callback, $this, null, $Private);
-      };
+      });
       
-      if (count ($this->Callbacks) > 0) {
-        // Raise all callbacks
-        foreach ($this->Callbacks as $cCallback) {
-          $Counter++;
-          call_user_func ($cCallback [0], $this, $Name, $this->Children, $Handler, $cCallback [1]);
-        }
-        
-        // Stop here if callbacks are pending
-        if ($Counter-- > 1)
-          return;
-      }
+      foreach ($this->Callbacks as $cCallback)
+        $Queue->addCall ($cCallback [0], $this, $Name, $this->Children, null, $cCallback [1]);
       
-      // Just call the handler if we get here
-      call_user_func ($Handler);
-      
-      return true;
+      $Queue->finish ();
     }
     // }}}
     
