@@ -176,7 +176,7 @@
      * @return bool
      **/
     public function addAuthorizer (qcREST_Interface_Authorizer $Authorizer) {
-      if (!in_array ($Authorizer, $this->Authorizers, ture))
+      if (!in_array ($Authorizer, $this->Authorizers, true))
         $this->Authorizers [] = $Authorizer;
       
       return true;
@@ -576,12 +576,16 @@
       $Queue->onResult (
         function (qcEvents_Queue $Queue, array $Result)
         use ($Callback, $Private) {
+          trigger_error ('Result ' . $Result [1]);
+          // Skip if not denied
           if ($Result [1] !== false)
             return;
           
+          // Stop the queue if denied
           $Queue->stop ();
           
-          call_user_func ($Callback, $this, true, $Private);
+          // Forward the denied state
+          call_user_func ($Callback, $this, false, $Private);
         }
       ); 
          
@@ -596,7 +600,7 @@
       $Authorizers = $this->Authorizers;
       
       foreach ($Authorizers as $Authorizer)
-        $Queue->addCall ($Authorizer, '', $Request, $Resource, $Collection);
+        $Queue->addCall ($Authorizer, 'authorizeRequest', $Request, $Resource, $Collection);
     }
     // }}}
     
