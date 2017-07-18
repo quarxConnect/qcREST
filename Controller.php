@@ -309,7 +309,7 @@
         use ($Request, $Callback, $Private) {
           // Stop if authentication failed
           if ($Status === false)
-            return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED, null, $Callback, $Private);
+            return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
           
           // Forward the authenticated user to Request
           if ($User !== null)
@@ -323,8 +323,12 @@
             use ($Request, $Callback, $Private) {
               return $this->authorizeRequest (
                 $Request, $Resource, $Collection,
-                function (qcREST_Interface_Controller $Self, $Result)
+                function (qcREST_Interface_Controller $Self, $Status)
                 use ($Request, $Resource, $Collection, $Segment, $Callback, $Private) {
+                  // Check authorization-status
+                  if (!$Status)
+                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED, null, $Callback, $Private);
+                    
                   // Check if there is a request-body
                   if (($cType = $Request->getContentType ()) !== null) {
                     // Make sure we have a processor for this
