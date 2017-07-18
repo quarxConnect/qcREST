@@ -443,7 +443,7 @@
       $rFunc = null;
       $rFunc = function ($Self, $Result, $Data = null) use ($Callback, $Private, $Request, &$Path, &$rFunc) {
         // We got a child-collection
-        if ($Result instanceof qcREST_Interface_Collection) {
+        if (($Self instanceof qcREST_Interface_Resource) && ($Result instanceof qcREST_Interface_Collection)) {
           // Check wheter to lookup a further child
           if ((count ($Path) == 1) && (strlen ($Path [0]) == 0))
             return call_user_func ($Callback, $this, $Self, $Result, null, $Private);
@@ -576,7 +576,6 @@
       $Queue->onResult (
         function (qcEvents_Queue $Queue, array $Result)
         use ($Callback, $Private) {
-          trigger_error ('Result ' . $Result [1]);
           // Skip if not denied
           if ($Result [1] !== false)
             return;
@@ -592,6 +591,7 @@
       $Queue->finish (
         function (qcEvents_Queue $Queue, array $Results)
         use ($Callback, $Private) {
+          // Just forward the callback
           call_user_func ($Callback, $this, true, $Private);
         }
       );
