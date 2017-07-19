@@ -21,6 +21,7 @@
   require_once ('qcREST/Interface/Request.php');
   
   class qcREST_Request implements qcREST_Interface_Request {
+    private $Controller = null;
     private $requestURI = '';
     private $requestMethod = 0;
     private $requestParameters = array ();
@@ -36,6 +37,7 @@
     /**
      * Create a new Request
      * 
+     * @param qcREST_Controller $Controller Instance of the controller that received this request
      * @param string $URI The requested URI
      * @param string $Method The used request-method
      * @param array $Parameters Additional Parameters for this request
@@ -49,7 +51,8 @@
      * @access friendly
      * @return void
      **/
-    function __construct ($URI, $Method, array $Parameters, array $Meta, $Content, $ContentType, array $acceptedContentTypes, $IP, $TLS = false) {
+    function __construct (qcREST_Controller $Controller, $URI, $Method, array $Parameters, array $Meta, $Content, $ContentType, array $acceptedContentTypes, $IP, $TLS = false) {
+      $this->Controller = $Controller;
       $this->requestURI = $URI;
       $this->requestMethod = $Method;
       $this->requestParameters = $Parameters;
@@ -83,6 +86,23 @@
      **/
     public function getURI () {
       return $this->requestURI;
+    }
+    // }}}
+    
+    // {{{ getFullURI
+    /**
+     * Retrive the full URI of the request including prefix of the implementation
+     * 
+     * @access public
+     * @return string
+     **/
+    public function getFullURI () {
+      $baseURI = $this->Controller->getURI ();
+      
+      if (($this->requestURI [0] == '/') && (substr ($baseURI, -1, 1) == '/'))
+        $baseURI = substr ($baseURI, 0, -1);
+      
+      return $baseURI . $this->requestURI;
     }
     // }}}
     

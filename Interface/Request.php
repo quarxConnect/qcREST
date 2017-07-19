@@ -47,6 +47,16 @@
     public function getURI ();
     // }}}
     
+    // {{{ getFullURI
+    /**
+     * Retrive the full URI of the request including base-url
+     * 
+     * @access public
+     * @return string
+     **/
+    public function getFullURI ();
+    // }}}
+    
     // {{{ getParameters
     /**
      * Retrive additional parameters for this request

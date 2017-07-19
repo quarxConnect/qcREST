@@ -183,7 +183,7 @@
       
       // Finaly create new request
       # TODO: Determine if TLS was used here
-      return new qcREST_Request ($URI [0], $Method, $URI [1], $Meta, $Body, $ContentType, $Types, $Server->getRemoteHost ());
+      return new qcREST_Request ($this, $URI [0], $Method, $URI [1], $Meta, $Body, $ContentType, $Types, $Server->getRemoteHost ());
     }
     // }}}
     

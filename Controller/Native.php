@@ -178,7 +178,7 @@
         $Meta ['Authorization'] = 'Basic ' . base64_encode ($_SERVER ['PHP_AUTH_USER'] . ':' . (isset ($_SERVER ['PHP_AUTH_PW']) ? $_SERVER ['PHP_AUTH_PW'] : ''));
       
       // Create the final request
-      return new qcREST_Request ($URI [0], $Method, $URI [1], $Meta, $Content, $ContentType, $Types, $_SERVER ['REMOTE_ADDR'], (isset ($_SERVER ['HTTPS']) && ($_SERVER ['HTTPS'] == 'on')));
+      return new qcREST_Request ($this, $URI [0], $Method, $URI [1], $Meta, $Content, $ContentType, $Types, $_SERVER ['REMOTE_ADDR'], (isset ($_SERVER ['HTTPS']) && ($_SERVER ['HTTPS'] == 'on')));
     }
     // }}}
     
