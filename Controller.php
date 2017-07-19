@@ -938,14 +938,83 @@
             else
               $baseURI .= $reqURI;
             
-            // Prepare finalizer
-            $Calls = 1;
-     
-            $Finalize = function () use (&$Calls, $Request, $Resource, $Representation, $outputProcessor, $Collection, $Callback, $Private, $First, $Last, $Search, $Sort, $Order) {
-              // Check if there are calls pending
-              if (--$Calls > 0)
+            // Prepare the queue
+            $Queue = new qcEvents_Queue;
+            
+            // Determine how to present children on the listing
+            if (is_callable (array ($Collection, 'getChildFullRepresenation')))
+              $Extend = $Collection->getChildFullRepresenation ();
+            else
+              $Extend = false;
+            
+            // Append children to the listing
+            $Representation ['idAttribute'] = $Name = $Collection->getNameAttribute ();
+            $Items = array ();
+            $Pos = 0;
+            $Last = ($Last === null ? count ($Children) : $Last);
+            
+            foreach ($Children as $Child) {
+              // Check if we may skip the generation of this child
+              if (!($Sort || $Search)) {
+                if ($Pos++ < $First)
+                  continue;
+                elseif ($Pos > $Last)
+                  break;
+              }
+              
+              // Create basic attributes
+              $Items [] = $Item = new stdClass;
+              $Item->_id = $Child->getName ();
+              $Item->_href = $baseURI . rawurlencode ($Item->_id);
+              $Item->_collection = $Child->hasChildCollection ();
+              $Item->_permissions = new stdClass;
+              $Item->_permissions->read = $Child->isReadable ($User);
+              $Item->_permissions->write = $Child->isWritable ($User);
+              $Item->_permissions->delete = $Child->isRemovable ($User);
+              # TODO? Append Permissions for Child-Collections here?
+              
+              // Store the children on the representation
+              // We do this more often as the callback-function (below) relies on this
+              $Representation ['items'] = $Items;
+              
+              // DEPRECATED: Old basic attributes
+              $Item->$Name = $Child->getName ();
+              $Item->uri = $baseURI . rawurlencode ($Item->$Name);
+              $Item->isCollection = $Child->hasChildCollection ();
+              
+              // Check wheter to expand the child
+              if (!(($Aware = ($Child instanceof qcRest_Interface_Collection_Representation)) || $Extend))
+                continue;
+              
+              // Expand the child
+              $Queue->addCall ($Child, ($Aware ? 'getCollectionRepresentation' : 'getRepresentation'), null, null, $Request);
+            }
+            
+            // Try to finalize
+            $Queue->onResult (function (qcEvents_Queue $Queue, array $Result)
+            use ($Representation) {
+              // Make sure its the result of a resource
+              if (!($Result [0] instanceof qcREST_Interface_Resource))
                 return;
               
+              // Make sure its a representation
+              if (!isset ($Result [1]) || ($Result [1] === null) || !($Result [1] instanceof qcREST_Interface_Representation))
+                return;
+              
+              // Find item on representation
+              foreach ($Representation ['items'] as $Item)
+                if ($Item->_id == $Result [0]->getName ()) {
+                  // Patch item on representation
+                  foreach ($Result [1] as $Key=>$Value)
+                    if ($Key [0] != '_')
+                      $Item->$Key = $Value;
+                  
+                  break;
+                }
+            });
+            
+            return $Queue->finish (function ()
+            use ($Request, $Resource, $Representation, $outputProcessor, $Collection, $Callback, $Private, $First, $Last, $Search, $Sort, $Order) {
               // Check if we have to apply anything
               if ($Search || $Sort) {
                 // Access the items
@@ -1020,74 +1089,7 @@
                 ),
                 $Callback, $Private
               );
-            };
-            
-            // Determine how to present children on the listing
-            if (is_callable (array ($Collection, 'getChildFullRepresenation')))
-              $Extend = $Collection->getChildFullRepresenation ();
-            else
-              $Extend = false;
-            
-            // Append children to the listing
-            $Representation ['idAttribute'] = $Name = $Collection->getNameAttribute ();
-            $Items = array ();
-            $Pos = 0;
-            $Last = ($Last === null ? count ($Children) : $Last);
-            
-            foreach ($Children as $Child) {
-              // Check if we may skip the generation of this child
-              if (!($Sort || $Search)) {
-                if ($Pos++ < $First)
-                  continue;
-                elseif ($Pos > $Last)
-                  break;
-              }
-              
-              // Create basic attributes
-              $Items [] = $Item = new stdClass;
-              $Item->_id = $Child->getName ();
-              $Item->_href = $baseURI . rawurlencode ($Item->_id);
-              $Item->_collection = $Child->hasChildCollection ();
-              $Item->_permissions = new stdClass;
-              $Item->_permissions->read = $Child->isReadable ($User);
-              $Item->_permissions->write = $Child->isWritable ($User);
-              $Item->_permissions->delete = $Child->isRemovable ($User);
-              # TODO? Append Permissions for Child-Collections here?
-              
-              // DEPRECATED: Old basic attributes
-              $Item->$Name = $Child->getName ();
-              $Item->uri = $baseURI . rawurlencode ($Item->$Name);
-              $Item->isCollection = $Child->hasChildCollection ();
-              
-              // Check wheter to expand the child
-              if (!(($Aware = ($Child instanceof qcRest_Interface_Collection_Representation)) || $Extend))
-                continue;
-              
-              // Expand the child
-              $Calls++;
-              call_user_func (
-                array ($Child, ($Aware ? 'getCollectionRepresentation' : 'getRepresentation')),
-                function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $rRepresentation = null) use ($Item, $Name, $Finalize, $Representation) {
-                  // Make sure we don't overwrite special keys
-                  unset ($rRepresentation [$Name], $rRepresentation ['uri'], $rRepresentation ['isCollection']);
-                  
-                  // Merge the attributes
-                  if ($rRepresentation !== null)
-                    foreach ($rRepresentation as $Key=>$Value)
-                      $Item->$Key = $Value;
-                  
-                  // Try to finalize
-                  call_user_func ($Finalize);
-                }, null,
-                $Request
-              );
-            }
-            
-            // Store the children on the representation
-            $Representation ['items'] = $Items;
-            
-            // Try to finalize
-            return call_user_func ($Finalize);
+            });
           }, null, $Request);
         
         // Create a new resource on this directory
