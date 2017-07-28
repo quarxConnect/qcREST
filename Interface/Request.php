@@ -27,6 +27,16 @@
     const METHOD_HEAD = 5;
     const METHOD_OPTIONS = 6;
     
+    // {{{ getController
+    /**
+     * Retrive the controller for this request
+     * 
+     * @access public
+     * @return qcREST_Interface_Controller
+     **/
+    public function getController ();
+    // }}}
+    
     // {{{ getMethod
     /**
      * Retrive the Method of this request

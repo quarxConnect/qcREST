@@ -65,6 +65,18 @@
     }
     // }}}
     
+    // {{{ getController
+    /**
+     * Retrive the controller for this request
+     * 
+     * @access public
+     * @return qcREST_Interface_Controller
+     **/
+    public function getController () {
+      return $this->Controller;
+    }
+    // }}}
+    
     // {{{ getMethod
     /**
      * Retrive the Method of this request
