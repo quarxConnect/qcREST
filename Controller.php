@@ -964,7 +964,7 @@
               $Extend = false;
             
             // Append children to the listing
-            $Representation ['idAttribute'] = $Name = $Collection->getNameAttribute ();
+            $Representation ['idAttribute'] = $Collection->getNameAttribute ();
             $Items = array ();
             $Pos = 0;
             $Last = ($Last === null ? count ($Children) : $Last);
@@ -987,19 +987,41 @@
               $Item->_permissions->read = $Child->isReadable ($User);
               $Item->_permissions->write = $Child->isWritable ($User);
               $Item->_permissions->delete = $Child->isRemovable ($User);
-              # TODO? Append Permissions for Child-Collections here?
+              
+              // Check permissions of containing collection 
+              if ($Child->hasChildCollection ())
+                $Queue->addCall (
+                  function (qcREST_interface_Resource $Resource, $Item, callable $Callback, $Private = null)
+                  use ($User) {
+                    // Try to retrive the child-collection
+                    return $Resource->getChildCollection (
+                      function (qcREST_interface_Resource $Resource, qcREST_Interface_Collection $Collection = null)
+                      use ($Item, $User, $Callback, $Private) {
+                        // Check if we found a collection-handle
+                        if (!$Collection)
+                          return call_user_func ($Callback, $Private);
+                        
+                        // Patch in default rights
+                        $Item->_permissions->collection = new stdClass;
+                        $Item->_permissions->collection->browse = $Collection->isBrowsable ($User);
+                        $Item->_permissions->collection->write = $Collection->isWritable ($User);
+                        $Item->_permissions->collection->delete = $Collection->isRemovable ($User);
+                        
+                        // Raise final callback
+                        call_user_func ($Callback, $Private);
+                      }
+                    );
+                  },
+                  $Child,
+                  $Item
+                );
               
               // Store the children on the representation
               // We do this more often as the callback-function (below) relies on this
               $Representation ['items'] = $Items;
               
-              // DEPRECATED: Old basic attributes
-              $Item->$Name = $Child->getName ();
-              $Item->uri = $baseURI . rawurlencode ($Item->$Name);
-              $Item->isCollection = $Child->hasChildCollection ();
-              
               // Check wheter to expand the child
-              if (!(($Aware = ($Child instanceof qcRest_Interface_Collection_Representation)) || $Extend))
+              if (!(($Aware = ($Child instanceof qcREST_Interface_Collection_Representation)) || $Extend))
                 continue;
               
               // Expand the child
@@ -1013,8 +1035,12 @@
               if (!($Result [0] instanceof qcREST_Interface_Resource))
                 return;
               
-              // Make sure its a representation
-              if (!isset ($Result [1]) || ($Result [1] === null) || !($Result [1] instanceof qcREST_Interface_Representation))
+              // Make sure there is a second parameter
+              if (!isset ($Result [1]) || ($Result [1] === null))
+                return;
+              
+              // Proceed with represenations
+              if (!($Result [1] instanceof qcREST_Interface_Representation))
                 return;
               
               // Find item on representation
