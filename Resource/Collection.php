@@ -44,7 +44,8 @@
      **/
     function __construct (array $Children = null, $Browsable = true, $Writable = true, $Removable = true, $fullRepresentation = false) {
       if ($Children)
-        $this->Children = $Children;
+        foreach ($Children as $Child)
+          $this->addChild ($Child);
       
       $this->Browsable = $Browsable;
       $this->Writable = $Writable;
@@ -106,6 +107,9 @@
      * @return void
      **/
     public function addChild (qcREST_Interface_Resource $Child, $Offset = null) {
+      if ($Child instanceof qcREST_Resource)
+        $Child->setCollection ($this);
+      
       if ($Offset !== null)
         $this->Children [$Offset] = $Child;
       else
@@ -200,14 +204,13 @@
      **/
     public function getChildren (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
       $Queue = new qcEvents_Queue;
-      $Queue->finish (function () use ($Callback, $Private) {
-        return call_user_func ($Callback, $this, $this->Children, $Private);
-      });
       
       foreach ($this->Callbacks as $cCallback)
         $Queue->addCall ($cCallback [0], $this, null, $this->Children, null, $cCallback [1]);
        
-      $Queue->finish ();
+      $Queue->finish (function () use ($Callback, $Private) {
+        return call_user_func ($Callback, $this, $this->Children, $Private);
+      });
     }
     // }}}
     
@@ -229,6 +232,10 @@
      **/
     public function getChild ($Name, callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
       $Queue = new qcEvents_Queue;
+      
+      foreach ($this->Callbacks as $cCallback)
+        $Queue->addCall ($cCallback [0], $this, $Name, $this->Children, null, $cCallback [1]);
+      
       $Queue->finish (function () use ($Name, $Callback, $Private) {
         // Look for a matching child
         foreach ($this->Children as $Child)
@@ -238,11 +245,6 @@
         // Just return nothing
         return call_user_func ($Callback, $this, null, $Private);
       });
-      
-      foreach ($this->Callbacks as $cCallback)
-        $Queue->addCall ($cCallback [0], $this, $Name, $this->Children, null, $cCallback [1]);
-      
-      $Queue->finish ();
     }
     // }}}
     

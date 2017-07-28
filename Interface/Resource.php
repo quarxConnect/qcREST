@@ -66,6 +66,16 @@
     public function getName ();
     // }}}
     
+    // {{{ getCollection
+    /**
+     * Retrive the parented collection of this resource
+     * 
+     * @access public
+     * @return qcREST_Interface_Collection
+     **/
+    public function getCollection ();
+    // }}}
+    
     // {{{ hasChildCollection
     /**
      * Determine if this resource as a child-collection available

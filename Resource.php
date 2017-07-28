@@ -29,6 +29,7 @@
     private $Name = '';
     private $Attributes = array ();
     private $Collection = null;
+    private $ChildCollection = null;
     
     // {{{ __construct
     /**
@@ -39,18 +40,20 @@
      * @param bool $Readable (optional)
      * @param bool $Writable (optional)
      * @param bool $Removable (optional)
+     * @param qcREST_Interface_Collection $ChildCollection (optional)
      * @param qcREST_Interface_Collection $Collection (optional)
      * 
      * @access friendly
      * @return void
      **/
-    function __construct ($Name = '', array $Attributes = array (), $Readable = true, $Writable = true, $Removable = true, qcREST_Interface_Collection $Collection = null) {
+    function __construct ($Name = '', array $Attributes = array (), $Readable = true, $Writable = true, $Removable = true, qcREST_Interface_Collection $ChildCollection = null, qcREST_Interface_Collection $Collection = null) {
       $this->Name = $Name;
       $this->Attributes = $Attributes;
       $this->Readable = $Readable;
       $this->Writable = $Writable;
       $this->Removable = $Removable;
       $this->Collection = $Collection;
+      $this->ChildCollection = $ChildCollection;
     }
     // }}}
     
@@ -118,6 +121,32 @@
     }
     // }}}
     
+    // {{{ getCollection
+    /**
+     * Retrive the parented collection of this resource
+     * 
+     * @access public
+     * @return qcREST_Interface_Collection
+     **/
+    public function getCollection () {
+      return $this->Collection;
+    }
+    // }}}
+    
+    // {{{ setCollection
+    /**
+     * Set the parented collection
+     * 
+     * @param qcREST_Interface_Collection $Collection
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setCollection (qcREST_Interface_Collection $Collection) {
+      $this->Collection = $Collection;
+    }
+    // }}}
+    
     // {{{ hasChildCollection
     /**
      * Determine if this resource as a child-collection available
@@ -126,7 +155,7 @@
      * @return bool
      **/
     public function hasChildCollection () {
-      return ($this->Collection !== null);
+      return ($this->ChildCollection !== null);
     }
     // }}}
     
@@ -145,7 +174,7 @@
      * @return void
      **/
     public function getChildCollection (callable $Callback, $Private = null) {
-      call_user_func ($Callback, $this, $this->Collection, $Private);
+      call_user_func ($Callback, $this, $this->ChildCollection, $Private);
     }
     // }}}
     
@@ -159,7 +188,7 @@
      * @return void
      **/
     public function setChildCollection (qcREST_Interface_Collection $Collection) {
-      $this->Collection = $Collection;
+      $this->ChildCollection = $Collection;
     }
     // }}}
     
@@ -171,7 +200,7 @@
      * @return void
      **/
     public function unsetChildCollection () {
-      $this->Collection = null;
+      $this->ChildCollection = null;
     }
     // }}}
     
