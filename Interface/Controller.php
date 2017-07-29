@@ -19,6 +19,18 @@
    **/
   
   interface qcREST_Interface_Controller {
+    // {{{ getURI
+    /**
+     * Retrive the URI of this controller or a resource/collection related to this one
+     * 
+     * @param qcREST_Interface_Entity $Resource (optional)
+     * 
+     * @access public
+     * @return string
+     **/
+    public function getURI (qcREST_Interface_Entity $Resource = null);
+    // }}}
+    
     // {{{ setRootElement
     /**
      * Set the root resource for this controller

@@ -80,12 +80,14 @@
     /**
      * Retrive the URI of this controller
      * 
+     * @param qcREST_Interface_Entity $Resource (optional)
+     * 
      * @access public
      * @return string
      **/
-    public function getURI () {
+    public function getURI (qcREST_Interface_Entity $Resource = null) {
       # TODO: Servername? Port? Custom path?
-      return ($this->virtualBaseURI !== null ? $this->virtualBaseURI : '') . '/';
+      return ($this->virtualBaseURI !== null ? $this->virtualBaseURI : '') . parent::getEntityURI ($Resource);
     }
     // }}}
     

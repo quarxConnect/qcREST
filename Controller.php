@@ -56,6 +56,41 @@
     }
     // }}}
     
+    // {{{ getEntityURI
+    /**
+     * Retrive the URI for a given entity
+     * 
+     * @param qcREST_Interface_Entity $Resource (optional)
+     * 
+     * @access public
+     * @return string
+     **/
+    public function getEntityURI (qcREST_Interface_Entity $Resource = null) {
+      if (!$Resource)
+        return '/';
+      
+      $Path = '';
+      $Full = false;
+      
+      do {
+        if ($Resource instanceof qcREST_Interface_Resource) {
+          $Path = $Resource->getName () . $Path;
+          $Resource = $Resource->getCollection ();
+        } elseif ($Resource instanceof qcREST_Interface_Collection) {
+          $Path = '/' . $Path;
+          
+          if ($Full = (($Resource = $Resource->getResource ()) === $this->Root))
+            break;
+        }
+      } while ($Resource);
+      
+      if (!$Full)
+        trigger_error ('Path may be incomplete');
+      
+      return $Path;
+    }
+    // }}}
+    
     // {{{ addProcessor
     /**
      * Register a new input/output-processor on this controller
@@ -181,16 +216,6 @@
       
       return true;
     }
-    // }}}
-    
-    // {{{ getURI
-    /**
-     * Retrive the URI of this controller
-     * 
-     * @access public
-     * @return string
-     **/
-    abstract public function getURI ();
     // }}}
     
     // {{{ httpHeaderParameters
@@ -534,6 +559,13 @@
         }
       );
       
+      // Call all authenticators
+      $Authenticators = $this->Authenticators;
+      
+      foreach ($Authenticators as $Authenticator)
+        $Queue->addCall ($Authenticator, 'authenticateRequest', $Request);
+      
+      // Setup finisher
       $Queue->finish (
         function (qcEvents_Queue $Queue, array $Results)
         use ($Callback, $Private) {
@@ -546,12 +578,6 @@
           return call_user_func ($Callback, $this, null, true, $Private);
         }
       );
-      
-      // Call all authenticators
-      $Authenticators = $this->Authenticators;
-      
-      foreach ($Authenticators as $Authenticator)
-        $Queue->addCall ($Authenticator, 'authenticateRequest', $Request);
     }
     // }}}
     
@@ -594,20 +620,84 @@
           call_user_func ($Callback, $this, false, $Private);
         }
       ); 
-         
-      $Queue->finish (
-        function (qcEvents_Queue $Queue, array $Results)
-        use ($Callback, $Private) {
-          // Just forward the callback
-          call_user_func ($Callback, $this, true, $Private);
-        }
-      );
       
-      // Call all authenticators
+      // Call all authorizers
       $Authorizers = $this->Authorizers;
       
       foreach ($Authorizers as $Authorizer)
         $Queue->addCall ($Authorizer, 'authorizeRequest', $Request, $Resource, $Collection);
+      
+      // Setup finisher
+      $Queue->finish (
+        function (qcEvents_Queue $Queue, array $Results)
+        use ($Callback, $Private) {
+          // Just forward the callback (if we get there there was no failure on the way)
+          call_user_func ($Callback, $this, true, $Private);
+        }
+      );
+    }
+    // }}}
+    
+    // {{{ getAuthorizedMethods
+    /**
+     * Retrive authorized methods for a resource or collection
+     * 
+     * @param qcREST_Interface_Resource $Resource
+     * @param qcREST_Interface_Collection $Collection (optional)
+     * @param qcREST_Interface_Request $Request (optional)
+     * @param callable $Callback
+     * @param mixed $Private (optional)
+     * 
+     * The callback will be raised in the form of
+     * 
+     *   function (qcREST_Interface_Controller $Self, array $Methods = null, mixed $Private = null) { }
+     *    
+     * @access public
+     * @return void
+     **/
+    public function getAuthorizedMethods (qcREST_Interface_Resource $Resource, qcREST_Interface_Collection $Collection = null, qcREST_Interface_Request $Request = null, callable $Callback, $Private = null) {
+      // Check if there are authenticators to process
+      if (count ($this->Authorizers) == 0)
+        return call_user_func ($Callback, $this, array (qcREST_Interface_Request::METHOD_GET, qcREST_Interface_Request::METHOD_POST, qcREST_Interface_Request::METHOD_PUT, qcREST_Interface_Request::METHOD_PATCH, qcREST_Interface_Request::METHOD_DELETE, qcREST_Interface_Request::METHOD_OPTIONS, qcREST_Interface_Request::METHOD_HEAD), $Private);
+         
+      // Create a queue
+      $Queue = new qcEvents_Queue;
+      
+      // Call all authorizers   
+      $Authorizers = $this->Authorizers;
+         
+      foreach ($Authorizers as $Authorizer)
+        $Queue->addCall ($Authorizer, 'getAuthorizedMethods', $Resource, $Collection, $Request);
+      
+      // Setup finisher
+      $Queue->finish (
+        function (qcEvents_Queue $Queue, array $Results)
+        use ($Callback, $Private) {
+          // Collect results
+          $Result = null;
+          
+          foreach ($Results as $CB) {
+            // Make sure there is a valid result
+            if (!isset ($CB [1]) || !is_array ($CB [1]))
+              continue;
+            
+            // Check if this is the first result
+            if ($Result === null) {
+              $Result = array_values ($CB [1]);
+              
+              continue;
+            }
+            
+            // Compare the result
+            foreach ($Result as $g=>$G)
+              if (!in_array ($G, $CB [1]))
+                unset ($Result [$g]);
+          }
+          
+          // Forward the result
+          return call_user_func ($Callback, $this, $Result, $Private);
+        }
+      );
     }
     // }}}
     
@@ -992,11 +1082,11 @@
               if ($Child->hasChildCollection ())
                 $Queue->addCall (
                   function (qcREST_interface_Resource $Resource, $Item, callable $Callback, $Private = null)
-                  use ($User) {
+                  use ($Request, $User) {
                     // Try to retrive the child-collection
                     return $Resource->getChildCollection (
                       function (qcREST_interface_Resource $Resource, qcREST_Interface_Collection $Collection = null)
-                      use ($Item, $User, $Callback, $Private) {
+                      use ($Item, $Request, $User, $Callback, $Private) {
                         // Check if we found a collection-handle
                         if (!$Collection)
                           return call_user_func ($Callback, $Private);
@@ -1007,8 +1097,23 @@
                         $Item->_permissions->collection->write = $Collection->isWritable ($User);
                         $Item->_permissions->collection->delete = $Collection->isRemovable ($User);
                         
-                        // Raise final callback
-                        call_user_func ($Callback, $Private);
+                        return $Request->getController ()->getAuthorizedMethods (
+                          $Resource,
+                          $Collection,
+                          $Request,
+                          function (qcREST_Interface_Controller $Self, array $Grants = null)
+                          use ($Item, $Request, $Callback, $Private) {
+                            // Patch collection rights
+                            if ($Grants) {
+                              $Item->_permissions->collection->browse = in_array ($Request::METHOD_GET, $Grants);
+                              $Item->_permissions->collection->write = in_array ($Request::METHOD_POST, $Grants) || in_array ($Request::METHOD_PUT, $Grants) || in_array ($Request::METHOD_PATCH, $Grants);
+                              $Item->_permissions->collection->delete = in_array ($Request::METHOD_DELETE, $Grants);
+                            }
+                            
+                            // Raise final callback
+                            call_user_func ($Callback, $Private);
+                          }
+                        );
                       }
                     );
                   },
@@ -1490,12 +1595,12 @@
      * Retrive a set of allowed Verbs for a given Resource (Resource or collection)
      * 
      * @param qcREST_Interface_Request $Request
-     * @param mixed $Resource
+     * @param qcREST_Interface_Entity $Resource
      * 
      * @access private
      * @return array
      **/
-    private function getAllowedMethods (qcREST_Interface_Request $Request, $Resource) {
+    private function getAllowedMethods (qcREST_Interface_Request $Request, qcREST_Interface_Entity $Resource) {
       $Methods = array ('OPTIONS');
       $User = $Request->getUser ();
       
@@ -1535,12 +1640,12 @@
      * Generate a set of default headers for a resource or collection
      * 
      * @param qcREST_Interface_Request $Request
-     * @param mixed $Resource
+     * @param qcREST_Interface_Entity $Resource
      * 
      * @access private
      * @return array
      **/
-    private function getDefaultHeaders (qcREST_Interface_Request $Request, $Resource) {
+    private function getDefaultHeaders (qcREST_Interface_Request $Request, qcREST_Interface_Entity $Resource) {
       return array (
         'Access-Control-Allow-Methods' => $this->getAllowedMethods ($Request, $Resource),
       );

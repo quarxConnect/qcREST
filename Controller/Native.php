@@ -52,10 +52,12 @@
     /**
      * Retrive the URI of this controller
      * 
+     * @param qcREST_Interface_Entity $Resource (optional)
+     * 
      * @access public
      * @return string
      **/
-    public function getURI () {
+    public function getURI (qcREST_Interface_Entity $Resource = null) {
       $URI = $_SERVER ['REQUEST_URI'];
       $scriptPath = dirname ($_SERVER ['SCRIPT_NAME']);
       $scriptName = basename ($_SERVER ['SCRIPT_NAME']);
@@ -66,12 +68,12 @@
       
       if (($lP > 1) && (substr ($URI, 0, $lP) == $scriptPath)) {
         if (substr ($URI, $lP + 1, $lN) == $scriptName)
-          return $Prefix . $_SERVER ['SCRIPT_NAME'] . ($this->virtualBaseURI ? $this->virtualBaseURI : '') . '/';
+          return $Prefix . $_SERVER ['SCRIPT_NAME'] . ($this->virtualBaseURI ? $this->virtualBaseURI : '') . parent::getEntityURI ($Resource);
         else
-          return $Prefix . $scriptPath . ($this->virtualBaseURI ? $this->virtualBaseURI : '') . '/';
+          return $Prefix . $scriptPath . ($this->virtualBaseURI ? $this->virtualBaseURI : '') . parent::getEntityURI ($Resource);
       }
       
-      return $Prefix . $_SERVER ['SCRIPT_NAME'] . ($this->virtualBaseURI ? $this->virtualBaseURI : '') . '/';
+      return $Prefix . $_SERVER ['SCRIPT_NAME'] . ($this->virtualBaseURI ? $this->virtualBaseURI : '') . parent::getEntityURI ($Resource);
     }
     // }}}
     
