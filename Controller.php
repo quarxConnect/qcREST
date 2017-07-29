@@ -333,8 +333,12 @@
         function (qcREST_Interface_Controller $Self, qcEntity_Card $User = null, $Status)
         use ($Request, $Callback, $Private) {
           // Stop if authentication failed
-          if ($Status === false)
+          if ($Status === false) {
+            if (defined ('QCREST_DEBUG'))
+              trigger_error ('Authentication failure');
+            
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+          }
           
           // Forward the authenticated user to Request
           if ($User !== null)
@@ -351,8 +355,12 @@
                 function (qcREST_Interface_Controller $Self, $Status)
                 use ($Request, $Resource, $Collection, $Segment, $Callback, $Private) {
                   // Check authorization-status
-                  if (!$Status)
+                  if (!$Status) {
+                    if (defined ('QCREST_DEBUG'))
+                      trigger_error ('Authorization failed');
+                    
                     return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED, null, $Callback, $Private);
+                  }
                   
                   // Retrive default headers just for convienience
                   $Headers = $this->getDefaultHeaders ($Request, ($Collection ? $Collection : $Resource));
@@ -726,8 +734,12 @@
         case $Request::METHOD_HEAD:
           // Make sure this is allowed
           if (($rc = $Resource->isReadable ($Request->getUser ())) !== true) {
-            if (($rc === null) && ($Request->getUser () === null))
+            if (($rc === null) && ($Request->getUser () === null)) {
+              if (defined ('QCREST_DEBUG'))
+                trigger_error ('Resource is unsure if it is readable');
+              
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+            }
             
             if (defined ('QCREST_DEBUG'))
               trigger_error ('Resource is not readable');
@@ -772,8 +784,12 @@
         case $Request::METHOD_PUT:
           // Make sure this is allowed  
           if (($rc = $Resource->isWritable ($Request->getUser ())) !== true) {
-            if (($rc === null) && ($Request->getUser () === null))
+            if (($rc === null) && ($Request->getUser () === null)) {
+              if (defined ('QCREST_DEBUG'))
+                trigger_error ('Resource is unsure wheter it is writable');
+              
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+            }
             
             if (defined ('QCREST_DEBUG'))
               trigger_error ('Resource is not writable');
@@ -1078,6 +1094,32 @@
               $Item->_permissions->write = $Child->isWritable ($User);
               $Item->_permissions->delete = $Child->isRemovable ($User);
               
+              // Ask authorizers for permissions
+              $Queue->addCall (
+                function (qcREST_interface_Resource $Resource, $Item, callable $Callback, $Private = null)
+                use ($Request) {
+                  return $Request->getController ()->getAuthorizedMethods (
+                    $Resource,
+                    null,
+                    $Request,   
+                    function (qcREST_Interface_Controller $Self, array $Grants = null)
+                    use ($Item, $Request, $Callback, $Private) {
+                      // Patch resource rights
+                      if ($Grants !== null) {   
+                        $Item->_permissions->read = in_array ($Request::METHOD_GET, $Grants);
+                        $Item->_permissions->write = in_array ($Request::METHOD_POST, $Grants) || in_array ($Request::METHOD_PUT, $Grants) || in_array ($Request::METHOD_PATCH, $Grants);
+                        $Item->_permissions->delete = in_array ($Request::METHOD_DELETE, $Grants);
+                      }
+                      
+                      // Raise final callback
+                      call_user_func ($Callback, $Private);
+                    }
+                  );
+                },
+                $Child,
+                $Item
+              );
+              
               // Check permissions of containing collection 
               if ($Child->hasChildCollection ())
                 $Queue->addCall (
@@ -1241,8 +1283,12 @@
         case $Request::METHOD_POST:
           // Make sure this is allowed
           if (($rc = $Collection->isWritable ($Request->getUser ())) !== true) {
-            if (($rc === null) && ($Request->getUser () === null))
+            if (($rc === null) && ($Request->getUser () === null)) {
+              if (defined ('QCREST_DEBUG'))
+                trigger_error ('Collection is unsure if it is writable');
+              
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+            }
             
             if (defined ('QCREST_DEBUG'))
               trigger_error ('Collection is not writable');
@@ -1300,8 +1346,12 @@
         case $Request::METHOD_PATCH:
           // Make sure this is allowed
           if (($rc = $Collection->isWritable ($Request->getUser ())) !== true) {
-            if (($rc === null) && ($Request->getUser () === null))
+            if (($rc === null) && ($Request->getUser () === null)) {
+              if (defined ('QCREST_DEBUG'))
+                trigger_error ('Collection is unsure if it is writable');
+              
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+            }
             
             if (defined ('QCREST_DEBUG'))
               trigger_error ('Collection is not writable and contents may not be replaced (PUT) or patched (PATCH)');
