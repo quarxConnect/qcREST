@@ -363,7 +363,10 @@
                   }
                   
                   // Retrive default headers just for convienience
-                  $Headers = $this->getDefaultHeaders ($Request, ($Collection ? $Collection : $Resource));
+                  if ($Collection || $Resource)
+                    $Headers = $this->getDefaultHeaders ($Request, ($Collection ? $Collection : $Resource));
+                  else
+                    $Headers = array ();
                   
                   // Check if there is a request-body
                   if (($cType = $Request->getContentType ()) !== null) {
@@ -1299,6 +1302,9 @@
           return $Collection->createChild ($Representation, $Segment, function (qcREST_Interface_Collection $Self, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null) use ($Headers, $outputProcessor, $Callback, $Private, $Request, $Resource) {
             // Check if a new child was created
             if (!$Child) {
+              if (defined ('QCREST_DEBUG'))
+                trigger_error ('Failed to create child');
+              
               if ($Representation)
                 return $this->handleRepresentation ($Request, $Resource, $Self, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
               
@@ -1306,22 +1312,9 @@
             }
             
             // Create URI for newly created child
-            $URI = $this->getURI ();
-            $reqURI = $Request->getURI ();   
-            
-            if ($reqURI [strlen ($reqURI) - 1] != '/')
-              $reqURI .= '/';
-            
-            if (($URI [strlen ($URI) - 1] == '/') && ($reqURI [0] == '/'))
-              $URI .= substr ($reqURI, 1);
-            else
-              $URI .= $reqURI;
-            
-            $URI .= rawurlencode ($Child->getName ());
+            $Headers ['Location'] = $URI = $this->getURI ($Child);
             
             // Process the response
-            $Headers ['Location'] = $URI;
-            
             if ($Representation)
               return $this->handleRepresentation ($Request, $Child, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_CREATED, $Headers, $Callback, $Private);
             
