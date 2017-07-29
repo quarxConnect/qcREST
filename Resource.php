@@ -53,7 +53,9 @@
       $this->Writable = $Writable;
       $this->Removable = $Removable;
       $this->Collection = $Collection;
-      $this->ChildCollection = $ChildCollection;
+      
+      if ($ChildCollection)
+        $this->setChildCollection ($ChildCollection);
     }
     // }}}
     
@@ -189,6 +191,9 @@
      **/
     public function setChildCollection (qcREST_Interface_Collection $Collection) {
       $this->ChildCollection = $Collection;
+      
+      if ($Collection && is_callable (array ($Collection, 'setResource')))
+        $Collection->setResource ($this);
     }
     // }}}
     

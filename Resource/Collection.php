@@ -22,6 +22,7 @@
   require_once ('qcEvents/Queue.php');
   
   class qcREST_Resource_Collection implements qcREST_Interface_Collection {
+    private $Resource = null;
     private $Children = array ();
     private $Browsable = true;
     private $Writable = true;
@@ -42,11 +43,12 @@
      * @access friendly
      * @return void
      **/
-    function __construct (array $Children = null, $Browsable = true, $Writable = true, $Removable = true, $fullRepresentation = false) {
+    function __construct (array $Children = null, $Browsable = true, $Writable = true, $Removable = true, $fullRepresentation = false, qcREST_Interface_Resource $Resource = null) {
       if ($Children)
         foreach ($Children as $Child)
           $this->addChild ($Child);
       
+      $this->Resource = $Resource;
       $this->Browsable = $Browsable;
       $this->Writable = $Writable;
       $this->Removable = $Removable;
@@ -93,6 +95,32 @@
      **/
     public function isBrowsable (qcEntity_Card $User = null) {
       return $this->Browsable;
+    }
+    // }}}
+    
+    // {{{ getResource
+    /**
+     * Retrive the resource of this collection
+     * 
+     * @access public
+     * @return qcREST_Interface_Resource
+     **/
+    public function getResource () {
+      return $this->Resource;
+    }
+    // }}}
+    
+    // {{{ setResource
+    /**
+     * Store the resource of this collection
+     * 
+     * @param qcREST_Interface_Resource $Resource
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setResource (qcREST_Interface_Resource $Resource) {
+      $this->Resource = $Resource;
     }
     // }}}
     

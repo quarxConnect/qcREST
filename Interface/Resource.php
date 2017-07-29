@@ -18,7 +18,9 @@
    * long with this program.  If not, see <http://www.gnu.org/licenses/>.
    **/
   
-  interface qcRest_Interface_Resource {
+  require_once ('qcREST/Interface/Entity.php');
+  
+  interface qcRest_Interface_Resource extends qcREST_Interface_Entity {
     // {{{ isReadable
     /**
      * Checks if this resource's attributes might be forwarded to the client

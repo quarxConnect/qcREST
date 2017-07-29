@@ -18,9 +18,10 @@
    * along with this program.  If not, see <http://www.gnu.org/licenses/>.
    **/
   
+  require_once ('qcREST/Interface/Entity.php');
   require_once ('qcREST/Interface/Resource.php');
   
-  interface qcREST_Interface_Collection {
+  interface qcREST_Interface_Collection extends qcREST_Interface_Entity {
     // {{{ isWritable
     /**
      * Checks if this collection is writable and may be modified by the client
@@ -57,6 +58,16 @@
     public function isBrowsable (qcEntity_Card $User = null);
     // }}}
     
+    
+    // {{{ getResource
+    /**
+     * Retrive the resource of this collection
+     * 
+     * @access public
+     * @return qcREST_Interface_Resource
+     **/
+    public function getResource ();
+    // }}}
     
     // {{{ getNameAttribute
     /**
