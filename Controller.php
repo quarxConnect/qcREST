@@ -1104,7 +1104,7 @@
                           function (qcREST_Interface_Controller $Self, array $Grants = null)
                           use ($Item, $Request, $Callback, $Private) {
                             // Patch collection rights
-                            if ($Grants) {
+                            if ($Grants !== null) {
                               $Item->_permissions->collection->browse = in_array ($Request::METHOD_GET, $Grants);
                               $Item->_permissions->collection->write = in_array ($Request::METHOD_POST, $Grants) || in_array ($Request::METHOD_PUT, $Grants) || in_array ($Request::METHOD_PATCH, $Grants);
                               $Item->_permissions->collection->delete = in_array ($Request::METHOD_DELETE, $Grants);
