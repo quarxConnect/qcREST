@@ -4,20 +4,60 @@
    **/
   self.qcREST = self.qcREST || { };
   self.qcREST.Model = Backbone.Model.extend ({
+    constructor : function () {
+      this.permissions = {
+        read : true, 
+        write : true,
+        delete : true
+      };
+      
+      Backbone.Model.apply (this, arguments);
+    },
     parse : function (json) {
       // Check if the json is from a collection-call
-      if ((typeof json._id == 'undefined') || (typeof json._href == 'undefined') || (typeof json._collection == 'undefined'))
+      if (!json || (typeof json._id == 'undefined') || (typeof json._href == 'undefined') || (typeof json._collection == 'undefined'))
         return json;
       
       // Remember meta-data from the collection
-      this.url = json._href
+      this.id = json._id;
+      this.url = json._href;
       this.isCollection = json._collection;
+      this.permissions = json._permissions;
+      
+      // Make sure permissions are initilized
+      if (!this.permissions)
+        this.permissions = {
+          read : true,
+          write : true,
+          delete : true
+        };
       
       // Remove this meta-information
       delete (json._href);
       delete (json._collection);
+      delete (json._permissions);
       
       return json;
+    },
+    isNew : function () {
+      return !this.getId () && (!this.url || (this.url.substring (this.url.length - 1, 1) == '/'));
+    },
+    getId : function () {
+      if (this.idAttribute && this.has (this.idAttribute))
+        return this.get (this.idAttribute);
+      
+      if (this.collection && this.collection.idAttribute && this.has (this.collection.idAttribute))
+        return this.get (this.collection.idAttribute);
+      
+      if (this.id)
+        return this.id;
+      
+      if (this.url) {
+        var p = this.url.split ('/');
+        
+        if (p [p.length - 1].length > 0)
+          return p [p.length - 1];
+      }
     }
   });
   
@@ -34,7 +74,10 @@
     },
     model : self.qcREST.Model,
     modelId : function (model) {
-      return model [this.idAttribute || '_id'];
+      if (typeof model == 'undefined')
+        return;
+      
+      return model [this.idAttribute] || model ['_id'];
     },
     parse : function (json) {
       // Store idAttribute
