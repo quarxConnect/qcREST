@@ -69,6 +69,18 @@
     public function isBrowsable (qcEntity_Card $User = null) { return false; }
     // }}}
     
+    // {{{ getResource
+    /**
+     * Retrive the parented resource when treating us as collection
+     * 
+     * @access public
+     * @return qcREST_Interface_Resource
+     **/
+    public function getResource () {
+      return $this;
+    }
+    // }}}
+    
     // {{{ setRepresentation
     /**
      * Update this resource with a given representation
