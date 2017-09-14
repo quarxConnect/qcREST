@@ -40,6 +40,9 @@
     /* Mapping of mime-types to processors */
     private $typeMaps = array ();
     
+    /* Always return a representation of the resource */
+    private $alwaysRepresentation = false;
+    
     // {{{ setRootElement
     /**
      * Set the root resource for this controller
@@ -803,13 +806,17 @@
           return $Resource->setRepresentation (
             $Representation,
             function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation, $Status)
-            use ($Request, $Headers, $Callback, $Private) {
+            use ($Request, $Headers, $Callback, $Private, $outputProcessor) {
               // Check if the operation was successfull
               if (!$Status)
                 return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
               
-              # TODO: Return representation here?
-              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_OK, $Headers, $Callback, $Private);
+              // Check wheter to just pass the result (default)
+              if (!$this->alwaysRepresentation || ($Self->isReadable ($Request->getUser ()) !== true))
+                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_STORED, $Headers, $Callback, $Private);
+              
+              // Forward the representation
+              return $this->handleRepresentation ($Request, $Self, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, $Headers, $Callback, $Private);
             }
           );
         case $Request::METHOD_PATCH:
@@ -848,13 +855,13 @@
               // Try to update the resource's attributes
               return $Resource->setRepresentation (
                 $currentRepresentation,
-                function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation, $Status)
+                function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation, $Status)
                 use ($Request, $Headers, $outputProcessor, $Callback, $Private) {
                   // Check if the operation was successfull
                   if (!$Status) {
                     // Use representation if there is a negative status on it
                     if ($Representation->getStatus () >= 400)
-                      return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
+                      return $this->handleRepresentation ($Request, $Self, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
                     
                     // Give a normal bad reply if representation does not work
                     return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
@@ -862,6 +869,13 @@
                   
                   # TODO: Return representation here?
                   return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_STORED, $Headers, $Callback, $Private);
+                  
+                  // Check wheter to just pass the result (default)
+                  if (!$this->alwaysRepresentation || ($Self->isReadable ($Request->getUser ()) !== true))
+                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_STORED, $Headers, $Callback, $Private);
+                  
+                  // Forward the representation
+                  return $this->handleRepresentation ($Request, $Self, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, $Headers, $Callback, $Private);
                 }
               );
             }, null,
@@ -1299,37 +1313,48 @@
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, $Headers, $Callback, $Private);
           }
           
-          return $Collection->createChild ($Representation, $Segment, function (qcREST_Interface_Collection $Self, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null) use ($Headers, $outputProcessor, $Callback, $Private, $Request, $Resource) {
-            // Check if a new child was created
-            if (!$Child) {
-              if (defined ('QCREST_DEBUG'))
-                trigger_error ('Failed to create child');
-              
-              if ($Representation)
-                return $this->handleRepresentation ($Request, $Resource, $Self, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
-              
-              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
-            }
-            
-            // Create URI for newly created child
-            $Headers ['Location'] = $URI = $this->getURI ($Child);
-            
-            // Process the response
-            if ($Representation)
-              return $this->handleRepresentation ($Request, $Child, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_CREATED, $Headers, $Callback, $Private);
-            
-            return $Child->getRepresentation (
-              function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation = null)
-              use ($Headers, $outputProcessor, $Request, $URI, $Callback, $Private) {
-                // Check if we retrive a representation for this
-                if (!$Representation)
-                  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CREATED, $Headers, $Callback, $Private);
+          return $Collection->createChild (
+            $Representation,
+            $Segment,
+            function (qcREST_Interface_Collection $Self, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null)
+            use ($Headers, $outputProcessor, $Callback, $Private, $Request, $Resource) {
+              // Check if a new child was created
+              if (!$Child) {
+                if (defined ('QCREST_DEBUG'))
+                  trigger_error ('Failed to create child');
                 
-                return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_CREATED, $Headers, $Callback, $Private);
-              }, null,
-              $Request
-            );
-          }, null, $Request);
+                if ($Representation)
+                  return $this->handleRepresentation ($Request, $Resource, $Self, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
+                
+                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
+              }
+              
+              // Create URI for newly created child
+              $Headers ['Location'] = $URI = $this->getURI ($Child);
+              
+              // Process the response
+              if ($Representation)
+                return $this->handleRepresentation ($Request, $Child, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_CREATED, $Headers, $Callback, $Private);
+              
+              // Check wheter to just pass the result (default)
+              if (!$this->alwaysRepresentation || ($Child->isReadable ($Request->getUser ()) !== true))
+                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_STORED, $Headers, $Callback, $Private);
+              
+              return $Child->getRepresentation (
+                function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation = null)
+                use ($Headers, $outputProcessor, $Request, $URI, $Callback, $Private) {
+                  // Check if we retrive a representation for this
+                  if (!$Representation)
+                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CREATED, $Headers, $Callback, $Private);
+                  
+                  return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_CREATED, $Headers, $Callback, $Private);
+                }, null,
+                $Request
+              );
+            },
+            null,
+            $Request
+          );
         
         // Replace all resources on this directory (PUT) with new ones or just add a new set (PATCH)
         case $Request::METHOD_PUT:
@@ -1461,6 +1486,7 @@
                 }
               
               // If we get here, we were finished
+              # TODO: Honor alwaysRepresentation here?!
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_STORED, $Headers, $Callback, $Private);
             };
             
