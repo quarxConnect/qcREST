@@ -1293,7 +1293,7 @@
                 $Headers,
                 $Callback, $Private
               );
-            });
+            }, null, true);
           }, null, $Request);
         
         // Create a new resource on this directory
