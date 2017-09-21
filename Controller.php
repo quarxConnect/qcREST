@@ -572,14 +572,6 @@
           return call_user_func ($Callback, $this, $Result [3], !!$Result [2], $Private);
         }
       );
-      
-      // Call all authenticators
-      $Authenticators = $this->Authenticators;
-      
-      foreach ($Authenticators as $Authenticator)
-        $Queue->addCall ($Authenticator, 'authenticateRequest', $Request);
-      
-      // Setup finisher
       $Queue->finish (
         function (qcEvents_Queue $Queue, array $Results)
         use ($Callback, $Private) {
@@ -592,6 +584,12 @@
           return call_user_func ($Callback, $this, null, true, $Private);
         }
       );
+      
+      // Call all authenticators
+      $Authenticators = $this->Authenticators;
+      
+      foreach ($Authenticators as $Authenticator)
+        $Queue->addCall ($Authenticator, 'authenticateRequest', $Request);
     }
     // }}}
     
@@ -633,6 +631,13 @@
           // Forward the denied state
           call_user_func ($Callback, $this, false, $Private);
         }
+      );
+      $Queue->finish (
+        function (qcEvents_Queue $Queue, array $Results)
+        use ($Callback, $Private) {
+          // Just forward the callback (if we get there there was no failure on the way)
+          call_user_func ($Callback, $this, true, $Private);
+        }
       ); 
       
       // Call all authorizers
@@ -640,15 +645,6 @@
       
       foreach ($Authorizers as $Authorizer)
         $Queue->addCall ($Authorizer, 'authorizeRequest', $Request, $Resource, $Collection);
-      
-      // Setup finisher
-      $Queue->finish (
-        function (qcEvents_Queue $Queue, array $Results)
-        use ($Callback, $Private) {
-          // Just forward the callback (if we get there there was no failure on the way)
-          call_user_func ($Callback, $this, true, $Private);
-        }
-      );
     }
     // }}}
     
