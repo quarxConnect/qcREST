@@ -238,7 +238,7 @@
        
       $Queue->finish (function () use ($Callback, $Private) {
         return call_user_func ($Callback, $this, $this->Children, $Private);
-      });
+      }, null, true);
     }
     // }}}
     
@@ -272,7 +272,7 @@
         
         // Just return nothing
         return call_user_func ($Callback, $this, null, $Private);
-      });
+      }, null, true);
     }
     // }}}
     
