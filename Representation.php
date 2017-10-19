@@ -44,6 +44,35 @@
     }
     // }}}
     
+    // {{{ __isset
+    /**
+     * Check if an attribute is known here
+     * 
+     * @param string $Name
+     * 
+     * @access friendly
+     * @return bool
+     **/
+    function __isset ($Name) {
+      return isset ($this->Set [$Name]);
+    }
+    // }}}
+    
+    // {{{ __get
+    /**
+     * Retrive a named attribute
+     * 
+     * @param string $Name
+     * 
+     * @access friendly
+     * @return mixed
+     **/
+    function __get ($Name) {
+      if (isset ($this->Set [$Name]))
+        return $this->Set [$Name];
+    }
+    // }}}
+    
     // {{{ getStatus
     /**
      * Retrive the desired status
