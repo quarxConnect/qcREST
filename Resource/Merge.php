@@ -29,6 +29,9 @@
     /* Separator for merged resources */
     private $Separator = ',';
     
+    /* Output full representation of child-resources */
+    private $childFullRepresentation = false;
+    
     // {{{ __construct
     /**
      * Create a new Merge-Resource
@@ -133,6 +136,34 @@
      **/
     public function getResource () {
       return $this;
+    }
+    // }}}
+    
+    // {{{ getChildFullRepresenation
+    /**
+     * Check wheter full representation of children should be shown on listings
+     * 
+     * @remark This function is optional and need not to be implemented, the controller will check on his own wheter this is usable
+     * 
+     * @access public
+     * @return bool
+     **/
+    public function getChildFullRepresenation () {
+      return $this->childFullRepresentation;
+    }
+    // }}}
+    
+    // {{{ setChildFullRepresentation
+    /**
+     * Set wheter to output full representation of our child-resources
+     * 
+     * @param bool $Toggle
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setChildFullRepresentation ($Toggle) {
+      $this->childFullRepresentation = !!$Toggle;
     }
     // }}}
     
