@@ -124,6 +124,18 @@
     }
     // }}}
     
+    // {{{ getResource
+    /**
+     * Retrive the resource of this collection
+     * 
+     * @access public
+     * @return qcREST_Interface_Resource
+     **/
+    public function getResource () {
+      return $this;
+    }
+    // }}}
+    
     // {{{ getChildCollection
     /**
      * Retrive a child-collection for this node
