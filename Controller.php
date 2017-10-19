@@ -1119,9 +1119,9 @@
                     use ($Item, $Request, $Callback, $Private) {
                       // Patch resource rights
                       if ($Grants !== null) {   
-                        $Item->_permissions->read = in_array ($Request::METHOD_GET, $Grants);
-                        $Item->_permissions->write = in_array ($Request::METHOD_POST, $Grants) || in_array ($Request::METHOD_PUT, $Grants) || in_array ($Request::METHOD_PATCH, $Grants);
-                        $Item->_permissions->delete = in_array ($Request::METHOD_DELETE, $Grants);
+                        $Item->_permissions->read = $Item->_permissions->read && in_array ($Request::METHOD_GET, $Grants);
+                        $Item->_permissions->write = $Item->_permissions->write && (in_array ($Request::METHOD_POST, $Grants) || in_array ($Request::METHOD_PUT, $Grants) || in_array ($Request::METHOD_PATCH, $Grants));
+                        $Item->_permissions->delete = $Item->_permissions->delete && in_array ($Request::METHOD_DELETE, $Grants);
                       }
                       
                       // Raise final callback
@@ -1160,9 +1160,9 @@
                           use ($Item, $Request, $Callback, $Private) {
                             // Patch collection rights
                             if ($Grants !== null) {
-                              $Item->_permissions->collection->browse = in_array ($Request::METHOD_GET, $Grants);
-                              $Item->_permissions->collection->write = in_array ($Request::METHOD_POST, $Grants) || in_array ($Request::METHOD_PUT, $Grants) || in_array ($Request::METHOD_PATCH, $Grants);
-                              $Item->_permissions->collection->delete = in_array ($Request::METHOD_DELETE, $Grants);
+                              $Item->_permissions->collection->browse = $Item->_permissions->collection->browse && in_array ($Request::METHOD_GET, $Grants);
+                              $Item->_permissions->collection->write = $Item->_permissions->collection->write && (in_array ($Request::METHOD_POST, $Grants) || in_array ($Request::METHOD_PUT, $Grants) || in_array ($Request::METHOD_PATCH, $Grants));
+                              $Item->_permissions->collection->delete = $Item->_permissions->collection->delete && in_array ($Request::METHOD_DELETE, $Grants);
                             }
                             
                             // Raise final callback
