@@ -130,6 +130,21 @@
     }
     // }}}
     
+    // {{{ getParameter
+    /**
+     * Retrive a named parameter of this request
+     * 
+     * @param string $Key
+     * 
+     * @access public
+     * @return mixed
+     **/
+    public function getParameter ($Key) {
+      if (isset ($this->requestParameters [$Key]))
+        return $this->requestParameters [$Key];
+    }
+    // }}}
+    
     // {{{ getMeta
     /**
      * Retrive given or all meta-data from this request

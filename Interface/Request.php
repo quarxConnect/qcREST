@@ -77,6 +77,18 @@
     public function getParameters ();
     // }}}
     
+    // {{{ getParameter
+    /**
+     * Retrive a named parameter of this request
+     * 
+     * @param string $Key
+     * 
+     * @access public
+     * @return mixed
+     **/
+    public function getParameter ($Key);
+    // }}}
+    
     // {{{ getMeta
     /**
      * Retrive given or all meta-data from this request
