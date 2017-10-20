@@ -4,6 +4,7 @@
    **/
   self.qcREST = self.qcREST || { };
   self.qcREST.Model = Backbone.Model.extend ({
+    idAttribute : '_id',
     constructor : function () {
       this.permissions = {
         read : true, 
