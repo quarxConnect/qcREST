@@ -1208,8 +1208,10 @@
                 if ($Item->_id == $Result [0]->getName ()) {
                   // Patch item on representation
                   foreach ($Result [1] as $Key=>$Value)
-                    if ($Key [0] != '_')
+                    if (!in_array ($Key, array ('_id', '_href', '_collection', '_permissions')))
                       $Item->$Key = $Value;
+                    else
+                      trigger_error ('Skipping reserved key ' . $Key);
                   
                   break;
                 }
