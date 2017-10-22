@@ -235,7 +235,7 @@
      * 
      * The callback will be raised once the operation was completed in the form of:
      * 
-     *   function (qcREST_Interface_Collection $Self, array $Children = null, mixed $Private) { }
+     *   function (qcREST_Interface_Collection $Self, array $Children = null, qcREST_Interface_Representation $Representation = null, mixed $Private) { }
      * 
      * @access public
      * @return void
@@ -243,7 +243,7 @@
     public function getChildren (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
       // Check if we have any entities assigned
       if (($Counter = count ($this->Resources)) == 0)
-        return call_user_func ($Callback, $this, null, $Private);
+        return call_user_func ($Callback, $this, null, null, $Private);
       
       // Increase the counter
       $Counter++;
@@ -321,7 +321,7 @@
             }
           }
       
-      call_user_func ($Callback, $this, $Resources, $Private);
+      call_user_func ($Callback, $this, $Resources, null, $Private);
     }
     // }}}
     

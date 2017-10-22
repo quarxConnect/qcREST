@@ -988,11 +988,6 @@
               $Private
             );
           
-          // Prepare representation
-          $Representation = new qcREST_Representation (array (
-            'type' => 'listing',
-          ));
-          
           // Handle pagination
           $rParams = $Request->getParameters ();
           $First = 0;
@@ -1036,263 +1031,281 @@
               $First = $Last = null;
           }
           
-          if (($First > 0) || ($Last !== null))
-            $Representation->addMeta ('X-Pagination-Performance-Warning', 'Using pagination without support on backend');
-          
           // Request the children of this resource
-          return $Collection->getChildren (function (qcREST_Interface_Collection $Collection, array $Children = null) use ($Request, $User, $Resource, $Headers, $outputProcessor, $Callback, $Private, $First, $Last, $Search, $Sort, $Order, $Representation) {
-            // Check if the call was successfull
-            if ($Children !== null) {
-              // Determine the total number of children
-              if ($Collection instanceof qcREST_Interface_Collection_Extended)
-                $Representation ['total'] = $Collection->getChildrenCount ();
+          return $Collection->getChildren (
+            function (qcREST_Interface_Collection $Collection, array $Children = null, qcREST_Interface_Representation $Representation = null)
+            use ($Request, $User, $Resource, $Headers, $outputProcessor, $Callback, $Private, $First, $Last, $Search, $Sort, $Order) {
+              // Prepare representation
+              if (!$Representation)
+                $Representation = new qcREST_Representation (array (
+                  'type' => 'listing',
+                ));
               else
-                $Representation ['total'] = count ($Children);
-            } else {
+                $Representation ['type'] = 'listing';
+              
+              // Check if the call was successfull
+              if ($Children !== null) {
+                // Determine the total number of children
+                if ($Collection instanceof qcREST_Interface_Collection_Extended)
+                  $Representation ['total'] = $Collection->getChildrenCount ();
+                else
+                  $Representation ['total'] = count ($Children);
+              } else {
+                // Make sure that collection-parameters are reset
+                if ($Collection instanceof qcREST_Interface_Collection_Extended)
+                  $Collection->resetParameters ();
+                
+                // Bail out an error
+                trigger_error ('Failed to retrive the children');
+                
+                // Callback our parent
+                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
+              }
+              
               // Make sure that collection-parameters are reset
               if ($Collection instanceof qcREST_Interface_Collection_Extended)
                 $Collection->resetParameters ();
               
-              // Bail out an error
-              trigger_error ('Failed to retrive the children');
+              // Determine the base-URI
+              $baseURI = $this->getURI ();  
+              $reqURI = $Request->getURI ();
               
-              // Callback our parent
-              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
-            }
-            
-            // Make sure that collection-parameters are reset
-            if ($Collection instanceof qcREST_Interface_Collection_Extended)
-              $Collection->resetParameters ();
-            
-            // Determine the base-URI
-            $baseURI = $this->getURI ();  
-            $reqURI = $Request->getURI ();
-            
-            if (($baseURI [strlen ($baseURI) - 1] == '/') && ($reqURI [0] == '/'))
-              $baseURI .= substr ($reqURI, 1);
-            else
-              $baseURI .= $reqURI;
-            
-            // Prepare the queue
-            $Queue = new qcEvents_Queue;
-            
-            // Determine how to present children on the listing
-            if (is_callable (array ($Collection, 'getChildFullRepresenation')))
-              $Extend = $Collection->getChildFullRepresenation ();
-            else
-              $Extend = false;
-            
-            // Append children to the listing
-            $Representation ['idAttribute'] = $Collection->getNameAttribute ();
-            $Items = array ();
-            $Pos = 0;
-            $Last = ($Last === null ? count ($Children) : $Last);
-            
-            foreach ($Children as $Child) {
-              // Check if we may skip the generation of this child
-              if (!($Sort || $Search)) {
-                if ($Pos++ < $First)
-                  continue;
-                elseif ($Pos > $Last)
-                  break;
-              }
+              if (($baseURI [strlen ($baseURI) - 1] == '/') && ($reqURI [0] == '/'))
+                $baseURI .= substr ($reqURI, 1);
+              else
+                $baseURI .= $reqURI;
               
-              // Create basic attributes
-              $Items [] = $Item = new stdClass;
-              $Item->_id = $Child->getName ();
-              $Item->_href = $baseURI . rawurlencode ($Item->_id);
-              $Item->_collection = $Child->hasChildCollection ();
-              $Item->_permissions = new stdClass;
-              $Item->_permissions->read = $Child->isReadable ($User);
-              $Item->_permissions->write = $Child->isWritable ($User);
-              $Item->_permissions->delete = $Child->isRemovable ($User);
+              // Prepare the queue
+              $Queue = new qcEvents_Queue;
               
-              // Ask authorizers for permissions
-              $Queue->addCall (
-                function (qcREST_interface_Resource $Resource, $Item, callable $Callback, $Private = null)
-                use ($Request) {
-                  return $Request->getController ()->getAuthorizedMethods (
-                    $Resource,
-                    null,
-                    $Request,   
-                    function (qcREST_Interface_Controller $Self, array $Grants = null)
-                    use ($Item, $Request, $Callback, $Private) {
-                      // Patch resource rights
-                      if ($Grants !== null) {   
-                        $Item->_permissions->read = $Item->_permissions->read && in_array ($Request::METHOD_GET, $Grants);
-                        $Item->_permissions->write = $Item->_permissions->write && (in_array ($Request::METHOD_POST, $Grants) || in_array ($Request::METHOD_PUT, $Grants) || in_array ($Request::METHOD_PATCH, $Grants));
-                        $Item->_permissions->delete = $Item->_permissions->delete && in_array ($Request::METHOD_DELETE, $Grants);
-                      }
-                      
-                      // Raise final callback
-                      call_user_func ($Callback, $Private);
-                    }
-                  );
-                },
-                $Child,
-                $Item
-              );
+              // Determine how to present children on the listing
+              if (is_callable (array ($Collection, 'getChildFullRepresenation')))
+                $Extend = $Collection->getChildFullRepresenation ();
+              else
+                $Extend = false;
               
-              // Check permissions of containing collection 
-              if ($Child->hasChildCollection ())
+              // Bail out a warning if we use pagination here
+              if (($First > 0) || ($Last !== null))
+                $Representation->addMeta ('X-Pagination-Performance-Warning', 'Using pagination without support on backend');
+              
+              // Append children to the listing
+              $Representation ['idAttribute'] = $Collection->getNameAttribute ();
+              $Items = array ();
+              $Pos = 0;
+              $Last = ($Last === null ? count ($Children) : $Last);
+              
+              foreach ($Children as $Child) {
+                // Check if we may skip the generation of this child
+                if (!($Sort || $Search)) {
+                  if ($Pos++ < $First)
+                    continue;
+                  elseif ($Pos > $Last)
+                    break;
+                }
+                
+                // Create basic attributes
+                $Items [] = $Item = new stdClass;
+                $Item->_id = $Child->getName ();
+                $Item->_href = $baseURI . rawurlencode ($Item->_id);
+                $Item->_collection = $Child->hasChildCollection ();
+                $Item->_permissions = new stdClass;
+                $Item->_permissions->read = $Child->isReadable ($User);
+                $Item->_permissions->write = $Child->isWritable ($User);
+                $Item->_permissions->delete = $Child->isRemovable ($User);
+                
+                // Ask authorizers for permissions
                 $Queue->addCall (
                   function (qcREST_interface_Resource $Resource, $Item, callable $Callback, $Private = null)
-                  use ($Request, $User) {
-                    // Try to retrive the child-collection
-                    return $Resource->getChildCollection (
-                      function (qcREST_interface_Resource $Resource, qcREST_Interface_Collection $Collection = null)
-                      use ($Item, $Request, $User, $Callback, $Private) {
-                        // Check if we found a collection-handle
-                        if (!$Collection)
-                          return call_user_func ($Callback, $Private);
+                  use ($Request) {
+                    return $Request->getController ()->getAuthorizedMethods (
+                      $Resource,
+                      null,
+                      $Request,   
+                      function (qcREST_Interface_Controller $Self, array $Grants = null)
+                      use ($Item, $Request, $Callback, $Private) {
+                        // Patch resource rights
+                        if ($Grants !== null) {   
+                          $Item->_permissions->read = $Item->_permissions->read && in_array ($Request::METHOD_GET, $Grants);
+                          $Item->_permissions->write = $Item->_permissions->write && (in_array ($Request::METHOD_POST, $Grants) || in_array ($Request::METHOD_PUT, $Grants) || in_array ($Request::METHOD_PATCH, $Grants));
+                          $Item->_permissions->delete = $Item->_permissions->delete && in_array ($Request::METHOD_DELETE, $Grants);
+                        }
                         
-                        // Patch in default rights
-                        $Item->_permissions->collection = new stdClass;
-                        $Item->_permissions->collection->browse = $Collection->isBrowsable ($User);
-                        $Item->_permissions->collection->write = $Collection->isWritable ($User);
-                        $Item->_permissions->collection->delete = $Collection->isRemovable ($User);
-                        
-                        return $Request->getController ()->getAuthorizedMethods (
-                          $Resource,
-                          $Collection,
-                          $Request,
-                          function (qcREST_Interface_Controller $Self, array $Grants = null)
-                          use ($Item, $Request, $Callback, $Private) {
-                            // Patch collection rights
-                            if ($Grants !== null) {
-                              $Item->_permissions->collection->browse = $Item->_permissions->collection->browse && in_array ($Request::METHOD_GET, $Grants);
-                              $Item->_permissions->collection->write = $Item->_permissions->collection->write && (in_array ($Request::METHOD_POST, $Grants) || in_array ($Request::METHOD_PUT, $Grants) || in_array ($Request::METHOD_PATCH, $Grants));
-                              $Item->_permissions->collection->delete = $Item->_permissions->collection->delete && in_array ($Request::METHOD_DELETE, $Grants);
-                            }
-                            
-                            // Raise final callback
-                            call_user_func ($Callback, $Private);
-                          }
-                        );
+                        // Raise final callback
+                        call_user_func ($Callback, $Private);
                       }
                     );
                   },
                   $Child,
                   $Item
                 );
-              
-              // Store the children on the representation
-              // We do this more often as the callback-function (below) relies on this
-              $Representation ['items'] = $Items;
-              
-              // Check wheter to expand the child
-              if (!(($Aware = ($Child instanceof qcREST_Interface_Collection_Representation)) || $Extend))
-                continue;
-              
-              // Expand the child
-              $Queue->addCall ($Child, ($Aware ? 'getCollectionRepresentation' : 'getRepresentation'), null, null, $Request);
-            }
-            
-            // Try to finalize
-            $Queue->onResult (function (qcEvents_Queue $Queue, array $Result)
-            use ($Representation) {
-              // Make sure its the result of a resource
-              if (!($Result [0] instanceof qcREST_Interface_Resource))
-                return;
-              
-              // Make sure there is a second parameter
-              if (!isset ($Result [1]) || ($Result [1] === null))
-                return;
-              
-              // Proceed with represenations
-              if (!($Result [1] instanceof qcREST_Interface_Representation))
-                return;
-              
-              // Find item on representation
-              foreach ($Representation ['items'] as $Item)
-                if ($Item->_id == $Result [0]->getName ()) {
-                  // Patch item on representation
-                  foreach ($Result [1] as $Key=>$Value)
-                    if (!in_array ($Key, array ('_id', '_href', '_collection', '_permissions')))
-                      $Item->$Key = $Value;
-                    else
-                      trigger_error ('Skipping reserved key ' . $Key);
-                  
-                  break;
-                }
-            });
-            
-            return $Queue->finish (function ()
-            use ($Request, $Resource, $Representation, $Headers, $outputProcessor, $Collection, $Callback, $Private, $First, $Last, $Search, $Sort, $Order) {
-              // Check if we have to apply anything
-              if ($Search || $Sort) {
-                // Access the items
-                $Items = $Representation ['items'];
                 
-                // Apply search-filter onto the result
-                if ($Search) {
-                  $Representation->addMeta ('X-Search-Performance-Warning', 'Using search without support on backend');
-                  
-                  // Filter the items
-                  foreach ($Items as $ID=>$Item) {
-                    foreach ($Item as $Key=>$Value)
-                      if (stripos ($Value, $Search) !== false)
-                        continue (2);
-                    
-                    unset ($Items [$ID]);
-                  }
-                  
-                  // Update the total-counter
-                  $Representation ['total'] = count ($Items);
-                }
+                // Check permissions of containing collection 
+                if ($Child->hasChildCollection ())
+                  $Queue->addCall (
+                    function (qcREST_interface_Resource $Resource, $Item, callable $Callback, $Private = null)
+                    use ($Request, $User) {
+                      // Try to retrive the child-collection
+                      return $Resource->getChildCollection (
+                        function (qcREST_interface_Resource $Resource, qcREST_Interface_Collection $Collection = null)
+                        use ($Item, $Request, $User, $Callback, $Private) {
+                          // Check if we found a collection-handle
+                          if (!$Collection)
+                            return call_user_func ($Callback, $Private);
+                          
+                          // Patch in default rights
+                          $Item->_permissions->collection = new stdClass;
+                          $Item->_permissions->collection->browse = $Collection->isBrowsable ($User);
+                          $Item->_permissions->collection->write = $Collection->isWritable ($User);
+                          $Item->_permissions->collection->delete = $Collection->isRemovable ($User);
+                          
+                          return $Request->getController ()->getAuthorizedMethods (
+                            $Resource,
+                            $Collection,
+                            $Request,
+                            function (qcREST_Interface_Controller $Self, array $Grants = null)
+                            use ($Item, $Request, $Callback, $Private) {
+                              // Patch collection rights
+                              if ($Grants !== null) {
+                                $Item->_permissions->collection->browse = $Item->_permissions->collection->browse && in_array ($Request::METHOD_GET, $Grants);
+                                $Item->_permissions->collection->write = $Item->_permissions->collection->write && (in_array ($Request::METHOD_POST, $Grants) || in_array ($Request::METHOD_PUT, $Grants) || in_array ($Request::METHOD_PATCH, $Grants));
+                                $Item->_permissions->collection->delete = $Item->_permissions->collection->delete && in_array ($Request::METHOD_DELETE, $Grants);
+                              }
+                              
+                              // Raise final callback
+                              call_user_func ($Callback, $Private);
+                            }
+                          );
+                        }
+                      );
+                    },
+                    $Child,
+                    $Item
+                  );
                 
-                // Apply sort-filter onto the result
-                if ($Sort) {
-                  $Representation->addMeta ('X-Sort-Performance-Warning', 'Using sort without support on backend');
-                  
-                  // Generate an index
-                  $Keys = array ();
-                  
-                  foreach ($Items as $Item) {
-                    if (isset ($Item->$Sort))
-                      $Key = $Item->$Sort;
-                    else
-                      $Key = ' ';
-                    
-                    if (isset ($Keys [$Key]))
-                      $Keys [$Key][] = $Item;
-                    else
-                      $Keys [$Key] = array ($Item);
-                  }
-                  
-                  // Sort the index
-                  if ($Order == qcREST_Interface_Collection_Extended::SORT_ORDER_DESCENDING)
-                    krsort ($Keys);
-                  else
-                    ksort ($Keys);
-                  
-                  // Push back the result
-                  $Items = array ();
-                  
-                  foreach ($Keys as $Itms)
-                    $Items = array_merge ($Items, $Itms);
-                }
+                // Store the children on the representation
+                // We do this more often as the callback-function (below) relies on this
+                $Representation ['items'] = $Items;
                 
-                // Push back the items
-                if ($Last === null)
-                  $Last = count ($Items);
+                // Check wheter to expand the child
+                if (!(($Aware = ($Child instanceof qcREST_Interface_Collection_Representation)) || $Extend))
+                  continue;
                 
-                $Representation ['items'] = array_slice ($Items, $First, $Last - $First);
+                // Expand the child
+                $Queue->addCall ($Child, ($Aware ? 'getCollectionRepresentation' : 'getRepresentation'), null, null, $Request);
               }
               
-              // Raise the final callback
-              return $this->handleRepresentation (
-                $Request,
-                $Resource,
-                $Collection,
-                $Representation,
-                $outputProcessor,
-                qcREST_Interface_Response::STATUS_OK,
-                $Headers,
-                $Callback, $Private
+              // Try to finalize
+              $Queue->onResult (
+                function (qcEvents_Queue $Queue, array $Result)
+                use ($Representation) {
+                  // Make sure its the result of a resource
+                  if (!($Result [0] instanceof qcREST_Interface_Resource))
+                    return;
+                  
+                  // Make sure there is a second parameter
+                  if (!isset ($Result [1]) || ($Result [1] === null))
+                    return;
+                  
+                  // Proceed with represenations
+                  if (!($Result [1] instanceof qcREST_Interface_Representation))
+                    return;
+                  
+                  // Find item on representation
+                  foreach ($Representation ['items'] as $Item)
+                    if ($Item->_id == $Result [0]->getName ()) {
+                      // Patch item on representation
+                      foreach ($Result [1] as $Key=>$Value)
+                        if (!in_array ($Key, array ('_id', '_href', '_collection', '_permissions')))
+                          $Item->$Key = $Value;
+                        else
+                          trigger_error ('Skipping reserved key ' . $Key);
+                      
+                      break;
+                    }
+                }
               );
-            }, null, true);
-          }, null, $Request);
+              
+              return $Queue->finish (
+                function ()
+                use ($Request, $Resource, $Representation, $Headers, $outputProcessor, $Collection, $Callback, $Private, $First, $Last, $Search, $Sort, $Order) {
+                  // Check if we have to apply anything
+                  if ($Search || $Sort) {
+                    // Access the items
+                    $Items = $Representation ['items'];
+                    
+                    // Apply search-filter onto the result
+                    if ($Search) {
+                      $Representation->addMeta ('X-Search-Performance-Warning', 'Using search without support on backend');
+                      
+                      // Filter the items
+                      foreach ($Items as $ID=>$Item) {
+                        foreach ($Item as $Key=>$Value)
+                          if (stripos ($Value, $Search) !== false)
+                            continue (2);
+                        
+                        unset ($Items [$ID]);
+                      }
+                      
+                      // Update the total-counter
+                      $Representation ['total'] = count ($Items);
+                    }
+                    
+                    // Apply sort-filter onto the result
+                    if ($Sort) {
+                      $Representation->addMeta ('X-Sort-Performance-Warning', 'Using sort without support on backend');
+                      
+                      // Generate an index
+                      $Keys = array ();
+                      
+                      foreach ($Items as $Item) {
+                        if (isset ($Item->$Sort))
+                          $Key = $Item->$Sort;
+                        else
+                          $Key = ' ';
+                        
+                        if (isset ($Keys [$Key]))
+                          $Keys [$Key][] = $Item;
+                        else
+                          $Keys [$Key] = array ($Item);
+                      }
+                      
+                      // Sort the index
+                      if ($Order == qcREST_Interface_Collection_Extended::SORT_ORDER_DESCENDING)
+                        krsort ($Keys);
+                      else
+                        ksort ($Keys);
+                      
+                      // Push back the result
+                      $Items = array ();
+                      
+                      foreach ($Keys as $Itms)
+                        $Items = array_merge ($Items, $Itms);
+                    }
+                    
+                    // Push back the items
+                    if ($Last === null)
+                      $Last = count ($Items);
+                    
+                    $Representation ['items'] = array_slice ($Items, $First, $Last - $First);
+                  }
+                  
+                  // Raise the final callback
+                  return $this->handleRepresentation (
+                    $Request,
+                    $Resource,
+                    $Collection,
+                    $Representation,
+                    $outputProcessor,
+                    qcREST_Interface_Response::STATUS_OK,
+                    $Headers,
+                    $Callback, $Private
+                  );
+                }, null,
+                true
+              );
+            }, null,
+            $Request
+          );
         
         // Create a new resource on this directory
         case $Request::METHOD_POST:
@@ -1384,113 +1397,117 @@
           }
           
           // Request the children of this resource
-          return $Collection->getChildren (function (qcREST_Interface_Collection $Collection, array $Children = null) use ($Removals, $Request, $Resource, $Representation, $Headers, $outputProcessor, $Callback, $Private) {
-            // Check if the call was successfull 
-            if ($Children === null) {
-              trigger_error ('Failed to retrive the children');
+          return $Collection->getChildren (
+            function (qcREST_Interface_Collection $Collection, array $Children = null)
+            use ($Removals, $Request, $Resource, $Representation, $Headers, $outputProcessor, $Callback, $Private) {
+              // Check if the call was successfull 
+              if ($Children === null) {
+                trigger_error ('Failed to retrive the children');
+                
+                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
+              }
               
-              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
-            }
-            
-            // Split children up into updates and removals
-            $Create = $Representation;
-            $Updates = array ();
-            
-            foreach ($Children as $Child)
-              // Check if the child is referenced on input-attributes
-              if (isset ($Representation [$Name = $Child->getName ()])) {
-                // Mark the child as updated
-                $Updates [$Name] = $Child;
-                
-              // Enqueue it for removal (chilren will only be removed if the request is of method PUT)
-              } elseif ($Removals !== null)
-                $Removals [] = $Child;
-            
-            $func = null;
-            $func = function ($Self = null, $P1 = null, $P2 = null) use ($Request, $outputProcessor, $Resource, &$Create, &$Updates, &$Removals, $Representation, $Headers, &$func, $Callback, $Private) {
-              // Check if we are returning
-              if ($Self) {
-                // Check if we tried to create a child
-                if ($Self === $this) {
-                  $Child = $P1;
-                  $cRepresentation = $P2;
+              // Split children up into updates and removals
+              $Create = $Representation;
+              $Updates = array ();
+              
+              foreach ($Children as $Child)
+                // Check if the child is referenced on input-attributes
+                if (isset ($Representation [$Name = $Child->getName ()])) {
+                  // Mark the child as updated
+                  $Updates [$Name] = $Child;
                   
-                  if (!$Child)
-                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
-                
-                // Check if we tried to update a child-resource
-                } elseif (is_array ($P1)) {
-                  $setAttributes = &$P1;
-                  $Status = &$P2;
+                // Enqueue it for removal (chilren will only be removed if the request is of method PUT)
+                } elseif ($Removals !== null)
+                  $Removals [] = $Child;
+              
+              $func = null;
+              $func = function ($Self = null, $P1 = null, $P2 = null) use ($Request, $outputProcessor, $Resource, &$Create, &$Updates, &$Removals, $Representation, $Headers, &$func, $Callback, $Private) {
+                // Check if we are returning
+                if ($Self) {
+                  // Check if we tried to create a child
+                  if ($Self === $this) {
+                    $Child = $P1;
+                    $cRepresentation = $P2;
+                    
+                    if (!$Child)
+                      return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
                   
-                  if (!$Status)
-                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
-                  
-                // Treat anything else as removal
-                } else {
-                  $Status = &$P1;
-                  
-                  if (!$Status)
-                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
+                  // Check if we tried to update a child-resource
+                  } elseif (is_array ($P1)) {
+                    $setAttributes = &$P1;
+                    $Status = &$P2;
+                    
+                    if (!$Status)
+                      return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
+                    
+                  // Treat anything else as removal
+                  } else {
+                    $Status = &$P1;
+                    
+                    if (!$Status)
+                      return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
+                  }
                 }
-              }
-              
-              // Try to update pending children
-              foreach ($Updates as $Name=>$Child) {
-                // Create a child-representation for the update
-                $childRepresentation = new qcREST_Representation (is_object ($Representation [$Name]) ? get_object_vars ($Representation [$Name]) : $Representation [$Name]);
                 
-                // Remove from queue
-                unset ($Updates [$Name], $Create [$Name]);
-                
-                // Check if we are PATCHing and should *really* PATCH
-                if (($Removals === null) && (!defined ('QCREST_PATCH_ON_COLLECTION_PATCHES_RESOURCES') || QCREST_PATCH_ON_COLLECTION_PATCHES_RESOURCES))
-                  return $Child->getRepresentation (function (qcREST_Interface_Resource $Child, qcREST_Interface_Representation $currentRepresentation = null) use ($func, $childRepresentation) {
-                    // Check if the current representation could be retrived
-                    if ($currentRepresentation === null)
-                      return call_user_func ($func, $Child, $childRepresentation, false);
-                    
-                    // Update Representation   
-                    $requireAttributes = false;
-                    
-                    foreach ($childRepresentation as $Key=>$Value)
-                      if (!$requireAttributes || isset ($currentRepresentation [$Key])) {
-                        $currentRepresentation [$Key] = $Value;
-                        unset ($childRepresentation [$Key]);
-                      } else
-                        return call_user_func ($func, $Child, $currentRepresentation, false);
-                    
-                    // Forward the update
-                    return $Child->setRepresentation ($currentRepresentation, $func);
-                  }, null, $Request);
-                
-                // Treat the update as a complete Representation
-                return $Child->setRepresentation ($childRepresentation, $func);
-              }
-              
-              // Try to create pending children
-              foreach ($Create as $Name=>$childAttributes) {
-                unset ($Create [$Name]);
-                
-                return $Resource->createChild (new qcREST_Representation ($childAttributes), $Name, $func, null, $Request);
-              }
-              
-              // Try to remove removals
-              if ($Removals !== null)
-                foreach ($Removals as $Name=>$Child) {
-                  unset ($Removals [$Name]);
+                // Try to update pending children
+                foreach ($Updates as $Name=>$Child) {
+                  // Create a child-representation for the update
+                  $childRepresentation = new qcREST_Representation (is_object ($Representation [$Name]) ? get_object_vars ($Representation [$Name]) : $Representation [$Name]);
                   
-                  return $Child->remove ($func);
+                  // Remove from queue
+                  unset ($Updates [$Name], $Create [$Name]);
+                  
+                  // Check if we are PATCHing and should *really* PATCH
+                  if (($Removals === null) && (!defined ('QCREST_PATCH_ON_COLLECTION_PATCHES_RESOURCES') || QCREST_PATCH_ON_COLLECTION_PATCHES_RESOURCES))
+                    return $Child->getRepresentation (function (qcREST_Interface_Resource $Child, qcREST_Interface_Representation $currentRepresentation = null) use ($func, $childRepresentation) {
+                      // Check if the current representation could be retrived
+                      if ($currentRepresentation === null)
+                        return call_user_func ($func, $Child, $childRepresentation, false);
+                      
+                      // Update Representation   
+                      $requireAttributes = false;
+                      
+                      foreach ($childRepresentation as $Key=>$Value)
+                        if (!$requireAttributes || isset ($currentRepresentation [$Key])) {
+                          $currentRepresentation [$Key] = $Value;
+                          unset ($childRepresentation [$Key]);
+                        } else
+                          return call_user_func ($func, $Child, $currentRepresentation, false);
+                      
+                      // Forward the update
+                      return $Child->setRepresentation ($currentRepresentation, $func);
+                    }, null, $Request);
+                  
+                  // Treat the update as a complete Representation
+                  return $Child->setRepresentation ($childRepresentation, $func);
                 }
+                
+                // Try to create pending children
+                foreach ($Create as $Name=>$childAttributes) {
+                  unset ($Create [$Name]);
+                  
+                  return $Resource->createChild (new qcREST_Representation ($childAttributes), $Name, $func, null, $Request);
+                }
+                
+                // Try to remove removals
+                if ($Removals !== null)
+                  foreach ($Removals as $Name=>$Child) {
+                    unset ($Removals [$Name]);
+                    
+                    return $Child->remove ($func);
+                  }
+                
+                // If we get here, we were finished
+                # TODO: Honor alwaysRepresentation here?!
+                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_STORED, $Headers, $Callback, $Private);
+              };
               
-              // If we get here, we were finished
-              # TODO: Honor alwaysRepresentation here?!
-              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_STORED, $Headers, $Callback, $Private);
-            };
-            
-            // Dispatch to update-function
-            return call_user_func ($func);
-          }, null, $Request);
+              // Dispatch to update-function
+              return call_user_func ($func);
+            }, null,
+            $Request
+          );
         
         // Delete the entire collection
         case $Request::METHOD_DELETE:

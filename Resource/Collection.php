@@ -225,7 +225,7 @@
      * 
      * The callback will be raised once the operation was completed in the form of:
      * 
-     *   function (qcREST_Interface_Collection $Self, array $Children = null, mixed $Private) { }
+     *   function (qcREST_Interface_Collection $Self, array $Children = null, qcREST_Interface_Representation $Representation = null, mixed $Private) { }
      * 
      * @access public
      * @return void
@@ -237,7 +237,7 @@
         $Queue->addCall ($cCallback [0], $this, null, $this->Children, null, $cCallback [1]);
        
       $Queue->finish (function () use ($Callback, $Private) {
-        return call_user_func ($Callback, $this, $this->Children, $Private);
+        return call_user_func ($Callback, $this, $this->Children, null, $Private);
       }, null, true);
     }
     // }}}
