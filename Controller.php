@@ -88,7 +88,7 @@
       } while ($Resource);
       
       if (!$Full)
-        trigger_error ('Path may be incomplete');
+        trigger_error ('Path may be incomplete: ' . $Path);
       
       return $Path;
     }
@@ -1068,12 +1068,9 @@
               
               // Determine the base-URI
               $baseURI = $this->getURI ();  
-              $reqURI = $Request->getURI ();
               
-              if (($baseURI [strlen ($baseURI) - 1] == '/') && ($reqURI [0] == '/'))
-                $baseURI .= substr ($reqURI, 1);
-              else
-                $baseURI .= $reqURI;
+              if (substr ($baseURI, -1, 1) == '/')
+                $baseURI = substr ($baseURI, 0, -1);
               
               // Prepare the queue
               $Queue = new qcEvents_Queue;
@@ -1106,7 +1103,7 @@
                 // Create basic attributes
                 $Items [] = $Item = new stdClass;
                 $Item->_id = $Child->getName ();
-                $Item->_href = $baseURI . rawurlencode ($Item->_id);
+                $Item->_href = $baseURI . $this->getEntityURI ($Child);
                 $Item->_collection = $Child->hasChildCollection ();
                 $Item->_permissions = new stdClass;
                 $Item->_permissions->read = $Child->isReadable ($User);
