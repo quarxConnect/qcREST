@@ -32,6 +32,9 @@
     /* Output full representation of child-resources */
     private $childFullRepresentation = false;
     
+    /* Representation-class for collections */
+    private $childCollectionRepresentationClass = null;
+    
     // {{{ __construct
     /**
      * Create a new Merge-Resource
@@ -164,6 +167,20 @@
      **/
     public function setChildFullRepresentation ($Toggle) {
       $this->childFullRepresentation = !!$Toggle;
+    }
+    // }}}
+    
+    // {{{ setCollectionRepresentationClass
+    /**
+     * Set a class or object-instance as child-collection-represenation-class
+     * 
+     * @param mixed $Class
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setCollectionRepresentationClass ($Class) {
+      $this->childCollectionRepresentationClass = $Class;
     }
     // }}}
     
@@ -321,7 +338,17 @@
             }
           }
       
-      call_user_func ($Callback, $this, $Resources, null, $Private);
+      if ($this->childCollectionRepresentationClass) {
+        $Class = $this->childCollectionRepresentationClass;
+        
+        if (!is_object ($Class))
+          $Class = new $Class ($this, $Resources);
+        else
+          $Class->setCollection ($Resources);
+      } else
+        $Class = null;
+      
+      call_user_func ($Callback, $this, $Resources, $Class, $Private);
     }
     // }}}
     
