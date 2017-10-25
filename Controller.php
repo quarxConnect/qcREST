@@ -64,11 +64,12 @@
      * Retrive the URI for a given entity
      * 
      * @param qcREST_Interface_Entity $Resource (optional)
+     * @param bool $Absolute (optional)
      * 
      * @access public
      * @return string
      **/
-    public function getEntityURI (qcREST_Interface_Entity $Resource = null) {
+    public function getEntityURI (qcREST_Interface_Entity $Resource = null, $Absolute = false) {
       if (!$Resource)
         return '/';
       
@@ -77,8 +78,15 @@
       
       do {
         if ($Resource instanceof qcREST_Interface_Resource) {
-          $Path = $Resource->getName () . $Path;
-          $Resource = $Resource->getCollection ();
+          if ((strlen ($Path) > 0) && ($Path [0] != '/') && ($Resource instanceof qcREST_Interface_Collection)) {
+            $Path = '/' . $Path;
+          
+            if ($Full = (($Resource = $Resource->getResource ()) === $this->Root))
+              break;
+          } else {
+            $Path = $Resource->getName () . $Path;
+            $Resource = $Resource->getCollection ();
+          }
         } elseif ($Resource instanceof qcREST_Interface_Collection) {
           $Path = '/' . $Path;
           
@@ -89,6 +97,15 @@
       
       if (!$Full)
         trigger_error ('Path may be incomplete: ' . $Path);
+      
+      if ($Absolute) {
+        $baseURI = $this->getURI ();
+        
+        if (substr ($baseURI, -1, 1) == '/')
+          $baseURI = substr ($baseURI, 0, -1);
+        
+        $Path = $baseURI . $Path;
+      }
       
       return $Path;
     }
