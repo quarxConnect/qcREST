@@ -79,24 +79,28 @@
       
       // Retrive all attributes from our children
       foreach ($this->Resources as $Resource)
-        $Resource->getRepresentation (function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $eRepresentation = null) use (&$Counter, &$Attributes, $Callback, $Private) {
-          // Check if there were attributes returned
-          if ($eAttributes !== null) {
-            // Find the right place for this resource
-            $Name = $Resource->getName ();
-            $Suff = 0;
+        $Resource->getRepresentation (
+          function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $eRepresentation = null)
+          use (&$Counter, &$Attributes, $Callback, $Private) {
+            // Check if there were attributes returned
+            if ($eRepresentation !== null) {
+              // Find the right place for this resource
+              $Name = $Resource->getName ();
+              $Suff = 0;
+              
+              while (array_key_exists ($Name . ($Suff > 0 ? '_' . $Suff : ''), $Attributes ['items']))
+                $Suff++;
+              
+              // Push the attributes to the collection
+              $Attributes ['items'][$Name . ($Suff > 0 ? '_' . $Suff : '')] = $eRepresentation->toArray ();
+            }
             
-            while (array_key_exists ($Name . ($Suff > 0 ? '_' . $Suff : ''), $Attributes ['items']))
-              $Suff++;
-            
-            // Push the attributes to the collection
-            $Attributes ['items'][$Name . ($Suff > 0 ? '_' . $Suff : '')] = $eRepresentation->toArray ();
-          }
-          
-          // Check if we have finished
-          if (--$Counter == 0)
-            call_user_func ($Callback, $this, new qcREST_Representation ($Attributes), $Private);
-        }, null, $Request);
+            // Check if we have finished
+            if (--$Counter == 0)
+              call_user_func ($Callback, $this, new qcREST_Representation ($Attributes), $Private);
+          }, null,
+          $Request
+        );
     }
     // }}}
     
@@ -334,6 +338,7 @@
               $Meta = new $this ($Name);
               $Meta->addResource ($Resources [$Name]);
               $Meta->addResource ($Child);
+              $Meta->setCollection ($this);
               $Resources [$Name] = $Meta;
             }
           }
