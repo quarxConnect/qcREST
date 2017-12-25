@@ -123,6 +123,18 @@
     }
     // }}}
     
+    // {{{ getAttributes
+    /**
+     * Retrive statically set attributes of this resource
+     * 
+     * @access public
+     * @return array
+     **/
+    public function getAttributes () {
+      return $this->Attributes;
+    }
+    // }}}
+    
     // {{{ getCollection
     /**
      * Retrive the parented collection of this resource
