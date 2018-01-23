@@ -1073,9 +1073,13 @@
                   $Collection->resetParameters ();
                 
                 // Bail out an error
-                trigger_error ('Failed to retrive the children');
+                if (defined ('QCREST_DEBUG'))
+                  trigger_error ('Failed to retrive the children');
                 
                 // Callback our parent
+                if ($Representation)
+                  return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
+                
                 return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
               }
               
