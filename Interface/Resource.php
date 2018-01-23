@@ -130,6 +130,7 @@
      * @param qcREST_Interface_Representation $Representation Representation to update this resource from
      * @param callable $Callback (optional) A callback to fire once the operation was completed
      * @param mixed $Private (optional) Some private data to pass to the callback
+     * @param qcREST_Interface_Request $Request (optional) The request that triggered this call
      * 
      * The callback will be raised once the operation was completed in the form of:
      * 
@@ -138,7 +139,7 @@
      * @access public
      * @return void
      **/
-    public function setRepresentation (qcREST_Interface_Representation $Representation, callable $Callback = null, $Private = null);
+    public function setRepresentation (qcREST_Interface_Representation $Representation, callable $Callback = null, $Private = null, qcREST_Interface_Request $Request = null);
     // }}}
     
     // {{{ remove

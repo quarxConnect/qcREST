@@ -830,7 +830,9 @@
               
               // Forward the representation
               return $this->handleRepresentation ($Request, $Self, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, $Headers, $Callback, $Private);
-            }
+            },
+            null,
+            $Request
           );
         case $Request::METHOD_PATCH:
           // Make sure this is allowed
@@ -889,7 +891,9 @@
                   
                   // Forward the representation
                   return $this->handleRepresentation ($Request, $Self, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, $Headers, $Callback, $Private);
-                }
+                },
+                null,
+                $Request
               );
             }, null,
             $Request
@@ -1057,7 +1061,7 @@
                 $Representation = new qcREST_Representation (array (
                   'type' => 'listing',
                 ));
-              else
+              elseif ($Children !== null)
                 $Representation ['type'] = 'listing';
               
               // Check if the call was successfull
@@ -1478,27 +1482,32 @@
                   
                   // Check if we are PATCHing and should *really* PATCH
                   if (($Removals === null) && (!defined ('QCREST_PATCH_ON_COLLECTION_PATCHES_RESOURCES') || QCREST_PATCH_ON_COLLECTION_PATCHES_RESOURCES))
-                    return $Child->getRepresentation (function (qcREST_Interface_Resource $Child, qcREST_Interface_Representation $currentRepresentation = null) use ($func, $childRepresentation) {
-                      // Check if the current representation could be retrived
-                      if ($currentRepresentation === null)
-                        return call_user_func ($func, $Child, $childRepresentation, false);
-                      
-                      // Update Representation   
-                      $requireAttributes = false;
-                      
-                      foreach ($childRepresentation as $Key=>$Value)
-                        if (!$requireAttributes || isset ($currentRepresentation [$Key])) {
-                          $currentRepresentation [$Key] = $Value;
-                          unset ($childRepresentation [$Key]);
-                        } else
-                          return call_user_func ($func, $Child, $currentRepresentation, false);
-                      
-                      // Forward the update
-                      return $Child->setRepresentation ($currentRepresentation, $func);
-                    }, null, $Request);
+                    return $Child->getRepresentation (
+                      function (qcREST_Interface_Resource $Child, qcREST_Interface_Representation $currentRepresentation = null)
+                      use ($func, $childRepresentation, $Request) {
+                        // Check if the current representation could be retrived
+                        if ($currentRepresentation === null)
+                          return call_user_func ($func, $Child, $childRepresentation, false);
+                        
+                        // Update Representation   
+                        $requireAttributes = false;
+                        
+                        foreach ($childRepresentation as $Key=>$Value)
+                          if (!$requireAttributes || isset ($currentRepresentation [$Key])) {
+                            $currentRepresentation [$Key] = $Value;
+                            unset ($childRepresentation [$Key]);
+                          } else
+                            return call_user_func ($func, $Child, $currentRepresentation, false);
+                        
+                        // Forward the update
+                        return $Child->setRepresentation ($currentRepresentation, $func, null, $Request);
+                      },
+                      null,
+                      $Request
+                    );
                   
                   // Treat the update as a complete Representation
-                  return $Child->setRepresentation ($childRepresentation, $func);
+                  return $Child->setRepresentation ($childRepresentation, $func, null, $Request);
                 }
                 
                 // Try to create pending children
