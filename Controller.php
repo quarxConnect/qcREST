@@ -787,7 +787,7 @@
           // Convert the request into a directory-request if possible
           return $Resource->getChildCollection (
             function (qcREST_Interface_Resource $Self, qcREST_Interface_Collection $Collection = null)
-            use ($Request, $Representation, $outputProcessor, $Callback, $Private) {
+            use ($Request, $Headers, $Representation, $outputProcessor, $Callback, $Private) {
               if (!$Collection) {
                 if (defined ('QCREST_DEBUG'))
                   trigger_error ('No child-collection');
