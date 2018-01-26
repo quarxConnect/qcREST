@@ -506,7 +506,7 @@
       $rFunc = null;
       $rFunc = function ($Self, $Result, $Data = null) use ($Callback, $Private, $Request, &$Path, &$rFunc) {
         // We got a child-collection
-        if (($Self instanceof qcREST_Interface_Resource) && ($Result instanceof qcREST_Interface_Collection)) {
+        if (($Self instanceof qcREST_Interface_Resource) && ($Result instanceof qcREST_Interface_Collection) && ($Data === null)) {
           // Check wheter to lookup a further child
           if ((count ($Path) == 1) && (strlen ($Path [0]) == 0))
             return call_user_func ($Callback, $this, $Self, $Result, null, $Private);
