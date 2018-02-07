@@ -21,10 +21,14 @@
   require_once ('qcREST/Resource.php');
   require_once ('qcREST/Representation.php');
   require_once ('qcREST/Interface/Collection.php');
+  require_once ('qcEvents/Queue.php');
   
   class qcREST_Resource_Merge extends qcREST_Resource implements qcREST_Interface_Collection {
     /* Stored resources */
     private $Resources = array ();
+    
+    /* Stored collections */
+    private $Collections = array ();
     
     /* Separator for merged resources */
     private $Separator = ',';
@@ -67,40 +71,42 @@
      **/  
     public function getRepresentation (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
       // Prepare the attributes
-      $Counter = count ($this->Resources);
-      $Attributes = array (
-        'type' => 'Merge-Resource',
-        'items' => array (),
-      );
+      $Queue = new qcEvents_Queue;
       
-      // Check if we have to retrive attributes from our children
-      if ($Counter == 0)
-        return call_user_func ($Callback, $this, new qcREST_Representation ($Attributes), $Private);
-      
-      // Retrive all attributes from our children
       foreach ($this->Resources as $Resource)
-        $Resource->getRepresentation (
-          function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $eRepresentation = null)
-          use (&$Counter, &$Attributes, $Callback, $Private) {
-            // Check if there were attributes returned
-            if ($eRepresentation !== null) {
-              // Find the right place for this resource
-              $Name = $Resource->getName ();
-              $Suff = 0;
-              
-              while (array_key_exists ($Name . ($Suff > 0 ? '_' . $Suff : ''), $Attributes ['items']))
-                $Suff++;
-              
-              // Push the attributes to the collection
-              $Attributes ['items'][$Name . ($Suff > 0 ? '_' . $Suff : '')] = $eRepresentation->toArray ();
-            }
+        $Queue->addCall ($Resource, $getRepresentation, null, null, $Request);
+       
+      $Queue->finish (
+        function (qcEvents_Queue $Queue, array $Results)
+        use ($Callback, $Private) {
+          // Setup final attributes
+          $Attributes = array (
+            'type' => 'Merge-Resource',
+            'items' => array (),
+          );
+          
+          // Append each response to attributes
+          foreach ($Results as $Result) {
+            // Check if there was a representation received
+            if (!is_object ($Result [1]))
+              continue;
             
-            // Check if we have finished
-            if (--$Counter == 0)
-              call_user_func ($Callback, $this, new qcREST_Representation ($Attributes), $Private);
-          }, null,
-          $Request
-        );
+            // Find the right place for this resource
+            $Name = $Result [0]->getName ();
+            $Suff = 0;
+            
+            while (array_key_exists ($Name . ($Suff > 0 ? '_' . $Suff : ''), $Attributes ['items']))
+              $Suff++;
+            
+            // Push the attributes to the collection
+            $Attributes ['items'][$Name . ($Suff > 0 ? '_' . $Suff : '')] = $Result [1]->toArray ();
+          }
+          
+          // Run the final callback
+          call_user_func ($Callback, $this, new qcREST_Representation ($Attributes), $Private);
+        }, null,
+        true
+      );
     }
     // }}}
     
@@ -126,10 +132,16 @@
      * @return bool  
      **/
     public function hasChildCollection () {
+      // Succeed if there are collections registered directly
+      if (count ($this->Collections) > 0)
+        return true;
+      
+      // Ask our merged resources for collections
       foreach ($this->Resources as $Resource)
         if ($Resource->hasChildCollection ())
           return true;
       
+      // Fail if we get here
       return false;
     }
     // }}}
@@ -233,6 +245,20 @@
     }
     // }}}
     
+    // {{{ addCollection
+    /**
+     * Store another collection on this one
+     * 
+     * @param qcREST_Interface_Collection $Collection
+     * 
+     * @access public
+     * @return void
+     **/
+    public function addCollection (qcREST_Interface_Collection $Collection) {
+      $this->Collections [] = $Collection;
+    }
+    // }}}
+    
     // {{{ getNameAttribute
     /** 
      * Retrive the name of the name-attribute
@@ -262,52 +288,42 @@
      * @return void
      **/
     public function getChildren (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
-      // Check if we have any entities assigned
-      if (($Counter = count ($this->Resources)) == 0)
-        return call_user_func ($Callback, $this, null, null, $Private);
-      
-      // Increase the counter
-      $Counter++;
-      
-      // Collect all children
-      $Children = array ();
+      // Prepare the queue
+      $Queue = new qcEvents_Queue;
+      $User = ($Request ? $Request->getUser () : null);
       
       foreach ($this->Resources as $Resource)
         if ($Resource->hasChildCollection ())
-          // Request collection-object for this resource
-          $Resource->getChildCollection (function (qcREST_Interface_Resource $Resource, qcREST_Interface_Collection $Collection = null) use (&$Counter, &$Children, $Callback, $Private) {
-            // Find the right place for this resource
-            $Name = $Resource->getName ();
-            $Suff = 0;
-            
-            while (array_key_exists ($Name . ($Suff > 0 ? '_' . $Suff : ''), $Children))
-              $Suff++;
-            
-            $Name = $Name . ($Suff > 0 ? '_' . $Suff : '');
-            
-            // Reserve that name
-            $Children [$Name] = null;
-            
-            // Process contents of this resource
-            if ($Collection && $Collection->isBrowsable ())
-              return $Collection->getChildren (function (qcREST_Interface_Collection $Collection, array $eChildren = null) use (&$Counter, &$Children, $Name, $Callback, $Private) {
-                $Children [$Name] = $eChildren;
-                
-                if (--$Counter == 0)
-                  $this->forwardChildren ($Children, $Callback, $Private);
-              });
-            
-            if (--$Counter == 0)
-              $this->forwardChildren ($Children, $Callback, $Private);
-          });
-        else
-          $Counter--;
+          $Queue->addCall ($Resource, 'getChildCollection');
       
-      // Check if we are done
-      if (--$Counter > 0)
-        return;
+      foreach ($this->Collections as $Collection)
+        if ($Collection->isBrowsable ($User))
+          $Queue->addCall ($Collection, 'getChildren', null, null, $Request);
       
-      $this->forwardChildren ($Children, $Callback, $Private);
+      $Queue->onResult (
+        function (qcEvents_Queue $Queue, array $Result)
+        use ($Request) {
+          // Check for a received child-collection
+          if (($Result [0] instanceof qcREST_Interface_Resource) && $Result [1])
+            $Queue->addCall ($Result [1], 'getChildren', null, null, $Request);
+        }
+      );
+      
+      $Queue->finish (
+        function (qcEvents_Queue $Queue, array $Results)
+        use ($Callback, $Private) {
+          // Collect all children
+          $Children = array ();
+          
+          foreach ($Results as $Result)
+            if (($Result [0] instanceof qcREST_Interface_Collection) && $Result [1])
+              $Children [] = $Result [1];
+          
+          // Forward the result
+          $this->forwardChildren ($Children, $Callback, $Private);
+        }, null,
+        true
+      );
     }
     // }}}
     
@@ -323,17 +339,24 @@
      * @return void
      **/
     private function forwardChildren (array $Collections, callable $Callback, $Private = null) {
+      // Collect all child-resources and merge if neccessary
       $Resources = array ();
       
-      foreach ($Collections as $Parent=>$Children)
+      foreach ($Collections as $Children)
         if (is_array ($Children))
           foreach ($Children as $Child) {
+            // Retrive the name of that child
             $Name = $Child->getName ();
             
+            // Check if a child by this name was already seen
             if (!isset ($Resources [$Name]))
               $Resources [$Name] = $Child;
+            
+            // Try to merge child into an existing merge
             elseif ($Resources [$Name] instanceof qcREST_Resource_Merge)
               $Resources [$Name]->addResource ($Child);
+            
+            // Create a new merge for this child
             else {
               $Meta = new $this ($Name);
               $Meta->addResource ($Resources [$Name]);
@@ -343,6 +366,7 @@
             }
           }
       
+      // Check wheter to create a representation-class for the children
       if ($this->childCollectionRepresentationClass) {
         $Class = $this->childCollectionRepresentationClass;
         
@@ -353,6 +377,7 @@
       } else
         $Class = null;
       
+      // Forward the result
       call_user_func ($Callback, $this, $Resources, $Class, $Private);
     }
     // }}}
