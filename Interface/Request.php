@@ -174,6 +174,34 @@
      **/
     public function getAcceptedContentTypes ();
     // }}}
+    
+    // {{{ hasSession
+    /**
+     * Check if this request contains a session
+     * 
+     * @access public
+     * @return bool
+     **/
+    public function hasSession ();
+    // }}}
+    
+    // {{{ getSession
+    /**
+     * Retrive a session for this request
+     * If no session exists a new one will be created
+     * 
+     * @param callable $Callback
+     * @param mixed $Private (optional)
+     * 
+     * The callback will be raised in the form of
+     * 
+     *   function (qcREST_Interface_Request $Self, qcREST_Interface_Session $Session = null, mixed $Private = null) { }
+     * 
+     * @access public
+     * @return void
+     **/
+    public function getSession (callable $Callback, $Private = null);
+    // }}}
   }
 
 ?>

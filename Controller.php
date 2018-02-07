@@ -37,11 +37,27 @@
     /* Registered Input/Output-Processors */
     private $Processors = array ();
     
+    /* Registered request-handlers */
+    private $requestHandlerResource = array ();
+    private $requestHandlerCollection = array ();
+    
     /* Mapping of mime-types to processors */
     private $typeMaps = array ();
     
     /* Always return a representation of the resource */
     private $alwaysRepresentation = false;
+    
+    // {{{ __construct
+    /**
+     * Setup a new controller
+     * 
+     * @access friendly
+     * @return void
+     **/
+    function __construct () {
+      
+    }
+    // }}}
     
     // {{{ setRootElement
     /**
@@ -1673,9 +1689,45 @@
         $Response->setMeta ('WWW-Authenticate', $Schemes);
       }
       
-      return $this->setResponse ($Response, function (qcREST_Interface_Controller $Self, qcREST_Interface_Response $Response, $Status) use ($Callback, $Private) {
-        call_user_func ($Callback, $this, $Response->getRequest (), $Response, $Status, $Private);
-      });
+      // Process the session
+      if (($Request = $Response->getRequest ()) && $Request->hasSession ())
+        return $Request->getSession (
+          function (qcREST_Interface_Request $Request, qcREST_Interface_Session $Session = null)
+          use ($Request, $Response, $Callback, $Private) {
+            // Make sure we have a session
+            if (!$Session)
+              return $this->setResponse (
+                $Response,
+                function (qcREST_Interface_Controller $Self, qcREST_Interface_Response $Response, $Status)
+                use ($Callback, $Private) {
+                  call_user_func ($Callback, $this, $Request, $Response, $Status, $Private);
+                }
+              ); // $this->setResponse()
+            
+            // Add the session to the response
+            $Session->addToResponse ($Response);
+            
+            // Forward the response and store the session
+            return $this->setResponse (
+              $Response,
+              function (qcREST_Interface_Controller $Self, qcREST_Interface_Response $Response, $Status)
+              use ($Request, $Session, $Callback, $Private) {
+                $Session->store (function () use ($Request, $Response, $Status, $Callback, $Private) {
+                  call_user_func ($Callback, $this, $Request, $Response, $Status, $Private);
+                });
+              }
+            ); // $this->setResponse()
+          }
+        ); // $Request->getSession()
+      
+      // Forward the response
+      return $this->setResponse (
+        $Response,
+        function (qcREST_Interface_Controller $Self, qcREST_Interface_Response $Response, $Status)
+        use ($Request, $Callback, $Private) {
+          call_user_func ($Callback, $this, $Request, $Response, $Status, $Private);
+        }
+      );
     }
     // }}}
     
@@ -1712,9 +1764,13 @@
      * @return array
      **/
     private function getAllowedMethods (qcREST_Interface_Request $Request, qcREST_Interface_Entity $Resource) {
+      // Setup result
       $Methods = array ('OPTIONS');
+      
+      // Try to retrive a user for the request
       $User = $Request->getUser ();
       
+      // Process allowed methods of a collection
       if ($Resource instanceof qcREST_Interface_Collection) {
         if ($Resource->isBrowsable ($User) === true)
           $Methods [] = 'GET';
@@ -1729,6 +1785,7 @@
           $Methods [] = 'DELETE';
       }
       
+      // Process allowed methods of a resource
       if ($Resource instanceof qcREST_Interface_Resource) {
         if ($Resource->isReadable ($User) === true)
           $Methods [] = 'GET';
@@ -1742,6 +1799,7 @@
           $Methods [] = 'DELETE';
       }
       
+      // Return the result
       return array_unique ($Methods);
     }
     // }}}

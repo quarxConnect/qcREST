@@ -205,6 +205,8 @@
         ob_end_clean ();
       
       // Generate output
+      header_remove ();
+      
       $Status = true;
       $Meta = $Response->getMeta ();
       

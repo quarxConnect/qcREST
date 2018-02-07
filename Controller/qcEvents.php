@@ -40,6 +40,9 @@
      * @return void
      **/
     function __construct (qcEvents_Socket_Server $Pool = null) {
+      // Run parent construtor first
+      parent::__construct ();
+      
       // Check wheter to setup our pool
       if (!$Pool)
         return;

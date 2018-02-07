@@ -19,6 +19,7 @@
    **/
   
   require_once ('qcREST/Interface/Request.php');
+  require_once ('qcREST/Session.php');
   
   class qcREST_Request implements qcREST_Interface_Request {
     private $Controller = null;
@@ -32,6 +33,7 @@
     private $Meta = array ();
     private $IP = '';
     private $TLS = false;
+    private $Session = null;
     
     // {{{ __construct
     /**
@@ -262,6 +264,47 @@
      **/
     public function getAcceptedContentTypes () {
       return $this->acceptedContentTypes;
+    }
+    // }}}
+    
+    // {{{ hasSession
+    /**
+     * Check if this request contains a session
+     * 
+     * @access public
+     * @return bool  
+     **/
+    public function hasSession () {
+      return (is_object ($this->Session) || qcREST_Session::hasSession ($this));
+    }
+    // }}}
+    
+    // {{{ getSession
+    /**
+     * Retrive a session for this request
+     * If no session exists a new one will be created
+     * 
+     * @param callable $Callback
+     * @param mixed $Private (optional)
+     * 
+     * The callback will be raised in the form of
+     * 
+     *   function (qcREST_Interface_Request $Self, qcREST_Interface_Session $Session = null, mixed $Private = null) { }
+     * 
+     * @access public
+     * @return void  
+     **/
+    public function getSession (callable $Callback, $Private = null) {
+      // Check if we have a session available
+      if ($this->Session)
+        call_user_func ($Callback, $this, $this->Session, $Private);
+      
+      // Create a new session
+      $this->Session = new qcREST_Session ($this);
+      
+      return $this->Session->load (function () use ($Callback, $Private) {
+        call_user_func ($Callback, $this, $this->Session, $Private);
+      });
     }
     // }}}
   }
