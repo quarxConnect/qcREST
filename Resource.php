@@ -20,6 +20,7 @@
   
   require_once ('qcREST/Interface/Resource.php');
   require_once ('qcREST/Representation.php');
+  require_once ('qcEvents/Promise.php');
   
   class qcRest_Resource implements qcREST_Interface_Resource {
     private $Readable = true;
@@ -271,21 +272,11 @@
     /**
      * Remove this resource from the server
      * 
-     * @param callable $Callback (optional) A callback to fire once the operation was completed
-     * @param mixed $Private (optional) Some private data to pass to the callback
-     * 
-     * The callback will be raised once the operation was completed in the form of:
-     * 
-     *   function (qcREST_Interface_Resource $Self, bool $Status, mixed $Private) { }
-     * 
      * @access public
-     * @return bool  
+     * @return qcEvents_Promise 
      **/
-    public function remove (callable $Callback = null, $Private = null) {
-      if ($Callback)
-        call_user_func ($Callback, $this, false, $Private);
-      
-      return true;
+    public function remove () : qcEvents_Promise {
+      return qcEvents_Promise::reject ('Unimplemented');
     }
     // }}}
   }

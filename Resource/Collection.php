@@ -20,6 +20,7 @@
   
   require_once ('qcREST/Interface/Collection.php');
   require_once ('qcEvents/Queue.php');
+  require_once ('qcEvents/Promise.php');
   
   class qcREST_Resource_Collection implements qcREST_Interface_Collection {
     private $Resource = null;
@@ -135,7 +136,7 @@
      * @return void
      **/
     public function addChild (qcREST_Interface_Resource $Child, $Offset = null) {
-      if ($Child instanceof qcREST_Resource)
+      if (($Child instanceof qcREST_Resource) || method_exists ($Child, 'setCollection'))
         $Child->setCollection ($this);
       
       if ($Offset !== null)
@@ -305,21 +306,11 @@
     /**   
      * Remove this resource from the server
      *    
-     * @param callable $Callback (optional) A callback to fire once the operation was completed
-     * @param mixed $Private (optional) Some private data to pass to the callback   
-     *    
-     * The callback will be raised once the operation was completed in the form of:
-     * 
-     *   function (qcREST_Interface_Collection $Self, bool $Status, mixed $Private) { }
-     * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function remove (callable $Callback = null, $Private = null) {
-      if ($Callback)
-        call_user_func ($Callback, $this, false, $Private);
-      
-      return false;
+    public function remove () : qcEvents_Promise {
+      return qcEvents_Promise::reject ('Unimplemented');
     }
     // }}}
   }

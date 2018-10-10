@@ -23,6 +23,7 @@
   require_once ('qcREST/Response.php');
   require_once ('qcREST/Representation.php');
   require_once ('qcEvents/Queue.php');
+  require_once ('qcEvents/Promise.php');
   
   abstract class qcREST_Controller implements qcREST_Interface_Controller {
     /* REST-Resource to use as Root */
@@ -928,13 +929,13 @@
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, $Headers, $Callback, $Private);
           }
           
-          return $Resource->remove (
-            function (qcREST_Interface_Resource $Self, $Status)
-            use ($Request, $Headers, $Callback, $Private) {
-              if (!$Status)
-                trigger_error ('Resource could not be removed');
-              
-              return $this->respondStatus ($Request, ($Status ? qcREST_Interface_Response::STATUS_REMOVED : qcREST_Interface_Response::STATUS_ERROR), $Headers, $Callback, $Private);
+          // Try to remove the resource
+          return qcEvents_Promise::ensure ($Resource->remove ())->then (
+            function () use ($Request, $Headers, $Callback, $Private) {
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_REMOVED, $Headers, $Callback, $Private);
+            },
+            function () use ($Request, $Headers, $Callback, $Private) {
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
             }
           );
         // Output Meta-Information for this resource
@@ -1229,7 +1230,7 @@
                   continue;
                 
                 // Expand the child
-                $Queue->addCall ($Child, ($Aware ? 'getCollectionRepresentation' : 'getRepresentation'), null, null, $Request);
+                $Queue->addCall ($Child, ($Aware ? 'getCollectionRepresentation' : 'getRepresentation'), null, $Item, $Request);
               }
               
               // Try to finalize
@@ -1249,17 +1250,22 @@
                     return;
                   
                   // Find item on representation
-                  foreach ($Representation ['items'] as $Item)
-                    if ($Item->_id == $Result [0]->getName ()) {
-                      // Patch item on representation
-                      foreach ($Result [1] as $Key=>$Value)
-                        if (!in_array ($Key, array ('_id', '_href', '_collection', '_permissions')))
-                          $Item->$Key = $Value;
-                        else
-                          trigger_error ('Skipping reserved key ' . $Key);
-                      
-                      break;
-                    }
+                  if (!is_object ($Result [2]))
+                    foreach ($Representation ['items'] as $Item)
+                      if ($Item->_id == $Result [0]->getName ()) {
+                        $Result [2] = $Item;
+                        break;
+                      }
+                  
+                  if (!is_object ($Result [2]))
+                    return;
+                  
+                  // Patch item on representation
+                  foreach ($Result [1] as $Key=>$Value)
+                    if (!in_array ($Key, array ('_id', '_href', '_collection', '_permissions')))
+                      $Result [2]->$Key = $Value;
+                    else
+                      trigger_error ('Skipping reserved key ' . $Key);
                 }
               );
               
@@ -1538,7 +1544,10 @@
                   foreach ($Removals as $Name=>$Child) {
                     unset ($Removals [$Name]);
                     
-                    return $Child->remove ($func);
+                    return qcEvents_Promise::ensure ($Child->remove ())->then (
+                      function () use ($Child, $func) { $func ($Child, true); },
+                      function () use ($Child, $func) { $func ($Child, false); }
+                    );
                   }
                 
                 // If we get here, we were finished
@@ -1565,10 +1574,12 @@
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, $Headers, $Callback, $Private);
           }
           
-          return $Collection->remove (
-            function (qcREST_Interface_Resource $Self, $Status)
-            use ($Request, $Headers, $Callback, $Private) {
-              return $this->respondStatus ($Request, ($Status ? qcREST_Interface_Response::STATUS_OK : qcREST_Interface_Response::STATUS_ERROR), $Headers, $Callback, $Private);
+          return qcEvents_Promise::ensure ($Collection->remove ())->then (
+            function () use ($Request, $Headers, $Callback, $Private) {
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_OK, $Headers, $Callback, $Private);
+            },
+            function () use ($Request, $Headers, $Callback, $Private) {
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
             }
           );
         // Output Meta-Information for this resource
