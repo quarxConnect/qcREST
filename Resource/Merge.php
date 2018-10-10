@@ -277,54 +277,46 @@
     /**
      * Retrive all children on this directory
      * 
-     * @param callable $Callback A callback to fire once the operation was completed
-     * @param mixed $Private (optional) Some private data to pass to the callback
      * @param qcREST_Interface_Request $Request (optional) The Request that triggered this function-call
      * 
-     * The callback will be raised once the operation was completed in the form of:
-     * 
-     *   function (qcREST_Interface_Collection $Self, array $Children = null, qcREST_Interface_Representation $Representation = null, mixed $Private) { }
-     * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function getChildren (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
-      // Prepare the queue
-      $Queue = new qcEvents_Queue;
+    public function getChildren (qcREST_Interface_Request $Request = null) : qcEvents_Promise {
+      // Get user of the request
       $User = ($Request ? $Request->getUser () : null);
+      
+      // Prepare the promises
+      $Promises = array ();
+      
+      $Queue = new qcEvents_Queue;
       
       foreach ($this->Resources as $Resource)
         if ($Resource->hasChildCollection ())
-          $Queue->addCall ($Resource, 'getChildCollection');
+          $Promises [] = new qcEvents_Promise (function ($resolve, $reject) use ($Resource) {
+            $Resource->getChildCollection (function ($Resource, qcREST_Interface_Collection $Collection = null) use ($resolve, $reject) {
+              $resolve ($Collection);
+            });
+          })->then (function (qcREST_Interface_Collection $Collection = null) use ($User) {
+            if ($Collection && $Collection->isBrowsable ($User))
+              return $Collection->getChildren ();
+          });
       
       foreach ($this->Collections as $Collection)
         if ($Collection->isBrowsable ($User))
-          $Queue->addCall ($Collection, 'getChildren', null, null, $Request);
+          $Promises [] = $Collection->getChildren ($Request);
       
-      $Queue->onResult (
-        function (qcEvents_Queue $Queue, array $Result)
-        use ($Request) {
-          // Check for a received child-collection
-          if (($Result [0] instanceof qcREST_Interface_Resource) && $Result [1])
-            $Queue->addCall ($Result [1], 'getChildren', null, null, $Request);
-        }
-      );
-      
-      $Queue->finish (
-        function (qcEvents_Queue $Queue, array $Results)
-        use ($Callback, $Private) {
-          // Collect all children
-          $Children = array ();
-          
-          foreach ($Results as $Result)
-            if (($Result [0] instanceof qcREST_Interface_Collection) && $Result [1])
-              $Children [] = $Result [1];
-          
-          // Forward the result
-          $this->forwardChildren ($Children, $Callback, $Private);
-        }, null,
-        true
-      );
+      return qcEvents_Promise::all ($Promises)->then (function ($Results) {
+        // Collect all children
+        $Children = array ();
+        
+        foreach ($Results as $Result)
+          if (is_array ($Result))
+            $Children = array_merge ($Children, $Result);
+        
+        // Forward the result
+        return $this->forwardChildren ($Children);
+      });
     }
     // }}}
     
@@ -333,13 +325,13 @@
      * Collect and prepare child-resources to be pushed back to our callee
      * 
      * @param array $Collections
-     * @param callable $Callback
+     * @param callable $Callback (optional)
      * @param mixed $Private (optional)
      * 
      * @access private
-     * @return void
+     * @return array
      **/
-    private function forwardChildren (array $Collections, callable $Callback, $Private = null) {
+    private function forwardChildren (array $Collections, callable $Callback = null, $Private = null) {
       // Collect all child-resources and merge if neccessary
       $Resources = array ();
       
@@ -379,7 +371,10 @@
         $Class = null;
       
       // Forward the result
-      call_user_func ($Callback, $this, $Resources, $Class, $Private);
+      if ($Callback)
+        call_user_func ($Callback, $this, $Resources, $Class, $Private);
+      
+      return array ($Resources, $Class);
     }
     // }}}
     

@@ -1077,39 +1077,20 @@
           }
           
           // Request the children of this resource
-          return $Collection->getChildren (
-            function (qcREST_Interface_Collection $Collection, array $Children = null, qcREST_Interface_Representation $Representation = null)
-            use ($Request, $User, $Resource, $Headers, $outputProcessor, $Callback, $Private, $First, $Last, $Search, $Sort, $Order) {
+          return qcEvents_Promise::ensure ($Collection->getChildren ($Request))->then (
+            function (array $Children = null, qcREST_Interface_Representation $Representation = null)
+            use ($Collection, $Request, $Resource, $outputProcessor, $Headers, $First, $Last, $Sort, $Search, $User, $Order, $Callback, $Private) {
               // Prepare representation
               if (!$Representation)
-                $Representation = new qcREST_Representation (array (
-                  'type' => 'listing',
-                ));
-              elseif ($Children !== null)
-                $Representation ['type'] = 'listing';
+                $Representation = new qcREST_Representation;
               
-              // Check if the call was successfull
-              if ($Children !== null) {
-                // Determine the total number of children
-                if ($Collection instanceof qcREST_Interface_Collection_Extended)
-                  $Representation ['total'] = $Collection->getChildrenCount ();
-                else
-                  $Representation ['total'] = count ($Children);
-              } else {
-                // Make sure that collection-parameters are reset
-                if ($Collection instanceof qcREST_Interface_Collection_Extended)
-                  $Collection->resetParameters ();
-                
-                // Bail out an error
-                if (defined ('QCREST_DEBUG'))
-                  trigger_error ('Failed to retrive the children');
-                
-                // Callback our parent
-                if ($Representation)
-                  return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
-                
-                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
-              }
+              $Representation ['type'] = 'listing';
+              
+              // Determine the total number of children
+              if ($Collection instanceof qcREST_Interface_Collection_Extended)
+                $Representation ['total'] = $Collection->getChildrenCount ();
+              else
+                $Representation ['total'] = count ($Children);
               
               // Make sure that collection-parameters are reset
               if ($Collection instanceof qcREST_Interface_Collection_Extended)
@@ -1175,7 +1156,7 @@
                           $Item->_permissions->write = $Item->_permissions->write && (in_array ($Request::METHOD_POST, $Grants) || in_array ($Request::METHOD_PUT, $Grants) || in_array ($Request::METHOD_PATCH, $Grants));
                           $Item->_permissions->delete = $Item->_permissions->delete && in_array ($Request::METHOD_DELETE, $Grants);
                         }
-                        
+
                         // Raise final callback
                         call_user_func ($Callback, $Private);
                       }
@@ -1354,8 +1335,26 @@
                 }, null,
                 true
               );
-            }, null,
-            $Request
+            },
+            function ($Representation) use ($Collection, $Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
+              // Make sure Representation is valid
+              if (!($Representation instanceof qcREST_Interface_Representation))
+                $Representation = null;
+              
+              // Make sure that collection-parameters are reset
+              if ($Collection instanceof qcREST_Interface_Collection_Extended)
+                $Collection->resetParameters ();
+              
+              // Bail out an error
+              if (defined ('QCREST_DEBUG'))
+                trigger_error ('Failed to retrive the children');
+              
+              // Callback our parent
+              if ($Representation)
+                return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
+              
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
+            }
           );
         
         // Create a new resource on this directory

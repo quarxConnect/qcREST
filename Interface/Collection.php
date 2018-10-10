@@ -96,18 +96,12 @@
     /**
      * Retrive all children on this directory
      * 
-     * @param callable $Callback A callback to fire once the operation was completed
-     * @param mixed $Private (optional) Some private data to pass to the callback
      * @param qcREST_Interface_Request $Request (optional) The Request that triggered this function-call
      * 
-     * The callback will be raised once the operation was completed in the form of:
-     * 
-     *   function (qcREST_Interface_Collection $Self, array $Children = null, qcREST_Interface_Representation $Representation = null, mixed $Private) { }
-     * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function getChildren (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null);
+    public function getChildren (qcREST_Interface_Request $Request = null) : qcEvents_Promise;
     // }}}
     
     // {{{ getChild
