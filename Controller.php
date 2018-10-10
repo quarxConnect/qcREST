@@ -1704,7 +1704,7 @@
       if (($Request = $Response->getRequest ()) && $Request->hasSession ())
         return $Request->getSession (
           function (qcREST_Interface_Request $Request, qcREST_Interface_Session $Session = null)
-          use ($Request, $Response, $Callback, $Private) {
+          use ($Response, $Callback, $Private) {
             // Make sure we have a session
             if (!$Session)
               return $this->setResponse (

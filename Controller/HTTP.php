@@ -129,6 +129,7 @@
       static $codeMap = array (
         qcREST_Interface_Response::STATUS_OK => 'Okay',
         qcREST_Interface_Response::STATUS_CREATED => 'Resource was created',
+        qcREST_Interface_Response::STATUS_STORED => 'Operation was successfull',
         qcREST_Interface_Response::STATUS_NOT_FOUND => 'Resource could not be found',
         qcREST_Interface_Response::STATUS_NOT_ALLOWED => 'Operation is not allowed',
         qcREST_Interface_Response::STATUS_CLIENT_ERROR => 'There was an error with your request',
