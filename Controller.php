@@ -531,7 +531,14 @@
           // Try to lookup the next child
           $Next = array_shift ($Path);
           
-          return $Result->getChild ($Next, $rFunc, array ($Self, $Next), $Request);
+          return qcEvents_Promise::ensure ($Result->getChild ($Next, $Request))->then (
+            function ($Child) use ($rFunc, $Result, $Self, $Next) {
+              $rFunc ($Result, $Child, array ($Self, $Next));
+            },
+            function () use ($rFunc, $Result, $Self, $Next) {
+              $rFunc ($Result, null, array ($Self, $Next));
+            }
+          );
           
         // A child of a collection was returned
         } elseif ($Result instanceof qcREST_Interface_Resource) {

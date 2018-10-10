@@ -140,19 +140,13 @@
      * Retrive a single child by its name from this directory
      * 
      * @param string $Name Name of the child to return
-     * @param callable $Callback A callback to fire once the operation was completed
-     * @param mixed $Private (optional) Some private data to pass to the callback
      * @param qcREST_Interface_Request $Request (optional) The Request that triggered this function-call
      * 
-     * The callback will be raised once the operation was completed in the form of:
-     * 
-     *   function (qcREST_Interface_Collection $Self, qcREST_Interface_Resource $Child = null, mixed $Private) { }
-     * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function getChild ($Name, callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
-      return call_user_func ($Callback, $this, null, $Private);
+    public function getChild ($Name, qcREST_Interface_Request $Request = null) : qcEvents_Promise {
+      return qcEvents_Promise::reject ('Unimplemented');
     }
     // }}}
     

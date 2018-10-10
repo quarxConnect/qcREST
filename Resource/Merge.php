@@ -22,6 +22,7 @@
   require_once ('qcREST/Representation.php');
   require_once ('qcREST/Interface/Collection.php');
   require_once ('qcEvents/Queue.php');
+  require_once ('qcEvents/Promise.php');
   
   class qcREST_Resource_Merge extends qcREST_Resource implements qcREST_Interface_Collection {
     /* Stored resources */
@@ -387,41 +388,43 @@
      * Retrive a single child by its name from this directory
      * 
      * @param string $Name Name of the child to return
-     * @param callable $Callback A callback to fire once the operation was completed
-     * @param mixed $Private (optional) Some private data to pass to the callback
      * @param qcREST_Interface_Request $Request (optional) The Request that triggered this function-call
      * 
-     * The callback will be raised once the operation was completed in the form of:
-     * 
-     *   function (qcREST_Interface_Collection $Self, qcREST_Interface_Resource $Child = null, mixed $Private) { }
-     * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function getChild ($Name, callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
-      # TODO: Speed this up
-      return $this->getChildren (function (qcREST_Interface_Collection $Self, array $Resources = null) use ($Name, $Callback, $Private) {
-        // Check if the call was successfull
-        if (!is_array ($Resources))
-          return call_user_func ($Callback, $this, null, $Private);
-        
-        // Check if we have a direct match
-        if (isset ($Resources [$Name]))
-          return call_user_func ($Callback, $this, $Resources [$Name], $Private);
-        
-        // Try to split the name up
-        if (count ($Names = explode ($this->Separator, $Name)) < 2)
-          return call_user_func ($Callback, $this, null, $Private);
-        
-        // Create a new merge
-        $Merge = new $this ($Name);
-        
-        foreach ($Names as $Part)
-          if (isset ($Resources [$Part]))
-            $Merge->addResource ($Resources [$Part]);
-        
-        // Return the lookup-result
-        return call_user_func ($Callback, $this, ($Merge->hasResources () ? $Merge : null), $Private);
+    public function getChild ($Name, qcREST_Interface_Request $Request = null) : qcEvents_Promise {
+      return new qcEvents_Promise (function ($resolve, $reject) use ($Name, $Request) {
+        # TODO: Speed this up
+        return $this->getChildren (
+          function (qcREST_Interface_Collection $Self, array $Resources = null)
+          use ($Name, $resolve, $reject) {
+            // Check if the call was successfull
+            if (!is_array ($Resources))
+              return $reject ();
+            
+            // Check if we have a direct match
+            if (isset ($Resources [$Name]))
+              return $resolve ($Resources [$Name]);
+            
+            // Try to split the name up
+            if (count ($Names = explode ($this->Separator, $Name)) < 2)
+              return $reject ();
+            
+            // Create a new merge
+            $Merge = new $this ($Name);
+            
+            foreach ($Names as $Part)
+              if (isset ($Resources [$Part]))
+                $Merge->addResource ($Resources [$Part]);
+            
+            // Return the lookup-result
+            if ($Merge->hasResources ())
+              return $resolve ($Merge);
+            
+            return $reject ();
+          }
+        );
       });
     }
     // }}}

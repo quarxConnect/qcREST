@@ -19,7 +19,6 @@
    **/
   
   require_once ('qcREST/Interface/Collection.php');
-  require_once ('qcEvents/Queue.php');
   require_once ('qcEvents/Promise.php');
   
   class qcREST_Resource_Collection implements qcREST_Interface_Collection {
@@ -151,19 +150,19 @@
      * Add a callback to be raised once children are requested from this collection
      * 
      * @param callable $Callback
-     * @param mixed $Private (optional)
      * 
      * The callback will be raised in the form of
      * 
-     *   function (qcREST_Resource_Collection $Self, string $Name = null, array $Children, callable $Callback, mixed $Private) { }
+     *   function (qcREST_Resource_Collection $Self, string $Name = null, array $Children) { }
      * 
-     * The variable contains the name of a children if a single one is requested, $Children will carry the actual child-set
+     * The variable contains the name of a children if a single one is requested, $Children will carry the actual child-set.
+     * The callback is expected to return a qcEvents_Promise
      * 
      * @access public
      * @return void
      **/
-    public function addChildCallback (callable $Callback, $Private = null) {
-      $this->Callbacks [] = array ($Callback, $Private);
+    public function addChildCallback (callable $Callback) {
+      $this->Callbacks [] = $Callback;
     }
     // }}}
     
@@ -232,14 +231,14 @@
      * @return void
      **/
     public function getChildren (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
-      $Queue = new qcEvents_Queue;
+      $Promises = array ();
       
-      foreach ($this->Callbacks as $cCallback)
-        $Queue->addCall ($cCallback [0], $this, null, $this->Children, null, $cCallback [1]);
-       
-      $Queue->finish (function () use ($Callback, $Private) {
+      foreach ($this->Callbacks as $Callback)
+        $Promises [] = $Callback ($this, null, $this->Children);
+      
+      return qcEvents_Promise::all ($Promises)->finally (function () use ($Callback, $Private) {
         return call_user_func ($Callback, $this, $this->Children, null, $Private);
-      }, null, true);
+      });
     }
     // }}}
     
@@ -248,32 +247,23 @@
      * Retrive a single child by its name from this directory
      * 
      * @param string $Name Name of the child to return
-     * @param callable $Callback A callback to fire once the operation was completed
-     * @param mixed $Private (optional) Some private data to pass to the callback
      * @param qcREST_Interface_Request $Request (optional) The Request that triggered this function-call   
      * 
-     * The callback will be raised once the operation was completed in the form of:
-     * 
-     *   function (qcREST_Interface_Collection $Self, qcREST_Interface_Resource $Child = null, mixed $Private) { }
-     * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function getChild ($Name, callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
-      $Queue = new qcEvents_Queue;
+    public function getChild ($Name, qcREST_Interface_Request $Request = null) : qcEvents_Promise {
+      $Promises = array ();
       
-      foreach ($this->Callbacks as $cCallback)
-        $Queue->addCall ($cCallback [0], $this, $Name, $this->Children, null, $cCallback [1]);
+      foreach ($this->Callbacks as $Callback)
+        $Promises [] = $Callback ($this, $Name, $this->Children);
       
-      $Queue->finish (function () use ($Name, $Callback, $Private) {
+      return qcEvents_Promise::all ($Promises)->then (function () {
         // Look for a matching child
         foreach ($this->Children as $Child)
           if ($Child->getName () == $Name)
-            return call_user_func ($Callback, $this, $Child, $Private);
-        
-        // Just return nothing
-        return call_user_func ($Callback, $this, null, $Private);
-      }, null, true);
+            return $Child;
+      });
     }
     // }}}
     
