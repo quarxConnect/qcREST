@@ -250,13 +250,10 @@
     /**
      * Load this session from its storage
      * 
-     * @param callable $Callback
-     * @param mixed $Private (optional)
-     * 
      * @access public
-     * @return void  
+     * @return qcEvents_Promise
      **/
-    public function load (callable $Callback, $Private = null) {
+    public function load () : qcEvents_Promise {
       // Make sure our session is running
       $this->switchSession ();
        
@@ -264,7 +261,7 @@
       $this->Values = $_SESSION;
       
       // Run the callback
-      call_user_func ($Callback, $this, true, $Private);
+      return qcEvents_Promise::resolve ();
     }
     // }}}
     
@@ -272,13 +269,10 @@
     /**
      * Store this session anywhere
      * 
-     * @param callable $Callback (optional)
-     * @param mixed $Private (optional)
-     * 
      * @access public
-     * @return void  
+     * @return qcEvents_Promise
      **/
-    public function store (callable $Callback = null, $Private = null) {
+    public function store () : qcEvents_Promise {
       // Make sure our session is running
       $this->switchSession ();
        
@@ -291,8 +285,7 @@
       session_commit ();
        
       // Run the callback
-      if ($Callback)
-        call_user_func ($Callback, $this, true, $Private);
+      return qcEvents_Promise::resolve ();
     }
     // }}}
     

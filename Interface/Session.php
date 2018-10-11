@@ -69,26 +69,20 @@
     /**
      * Load this session from its storage
      * 
-     * @param callable $Callback
-     * @param mixed $Private (optional)
-     * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function load (callable $Callback, $Private = null);
+    public function load () : qcEvents_Promise;
     // }}}
     
     // {{{ store
     /**
      * Store this session anywhere
      * 
-     * @param callable $Callback (optional)
-     * @param mixed $Private (optional)
-     * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function store (callable $Callback = null, $Private = null);
+    public function store () : qcEvents_Promise;
     // }}}
   }
 

@@ -190,17 +190,10 @@
      * Retrive a session for this request
      * If no session exists a new one will be created
      * 
-     * @param callable $Callback
-     * @param mixed $Private (optional)
-     * 
-     * The callback will be raised in the form of
-     * 
-     *   function (qcREST_Interface_Request $Self, qcREST_Interface_Session $Session = null, mixed $Private = null) { }
-     * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function getSession (callable $Callback, $Private = null);
+    public function getSession () : qcEvents_Promise;
     // }}}
   }
 

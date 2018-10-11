@@ -1702,34 +1702,26 @@
       
       // Process the session
       if (($Request = $Response->getRequest ()) && $Request->hasSession ())
-        return $Request->getSession (
-          function (qcREST_Interface_Request $Request, qcREST_Interface_Session $Session = null)
-          use ($Response, $Callback, $Private) {
-            // Make sure we have a session
-            if (!$Session)
-              return $this->setResponse (
-                $Response,
-                function (qcREST_Interface_Controller $Self, qcREST_Interface_Response $Response, $Status)
-                use ($Callback, $Private) {
-                  call_user_func ($Callback, $this, $Request, $Response, $Status, $Private);
-                }
-              ); // $this->setResponse()
-            
+        return qcEvents_Promise::ensure ($Request->getSession ())->then (
+          function (qcREST_Interface_Session $Session) use ($Response) {
             // Add the session to the response
             $Session->addToResponse ($Response);
             
+            // Store the session
+            return $Session->store ();
+          }
+        )->finally (
+          function () use ($Response, $Callback, $Private) {
             // Forward the response and store the session
             return $this->setResponse (
               $Response,
               function (qcREST_Interface_Controller $Self, qcREST_Interface_Response $Response, $Status)
-              use ($Request, $Session, $Callback, $Private) {
-                $Session->store (function () use ($Request, $Response, $Status, $Callback, $Private) {
-                  call_user_func ($Callback, $this, $Request, $Response, $Status, $Private);
-                });
+              use ($Callback, $Private) {
+                call_user_func ($Callback, $this, $Request, $Response, $Status, $Private);
               }
-            ); // $this->setResponse()
+            );
           }
-        ); // $Request->getSession()
+        );
       
       // Forward the response
       return $this->setResponse (
