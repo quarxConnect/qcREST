@@ -21,7 +21,6 @@
   require_once ('qcREST/Resource.php');
   require_once ('qcREST/Representation.php');
   require_once ('qcREST/Interface/Collection.php');
-  require_once ('qcEvents/Queue.php');
   require_once ('qcEvents/Promise.php');
   
   class qcREST_Resource_Merge extends qcREST_Resource implements qcREST_Interface_Collection {

@@ -26,19 +26,11 @@
      * @param qcREST_Interface_Request $Request A request-object to authorize
      * @param qcREST_Interface_Resource $Resource (optional) Resource matching the request
      * @param qcREST_Interface_Collection (optional) Collection matching the request
-     * @param callable $Callback
-     * @param mixed $Private (optional)
-     * 
-     * The callback will be raised in the form of
-     * 
-     *   function (qcREST_Interface_Authorizer $Self, bool $Status, mixed $Private = null) { }
-     * 
-     * $Status indicated wheter the request should be processed or not - if unsure this should be NULL,
      * 
      * @access private
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function authorizeRequest (qcREST_Interface_Request $Request, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null, callable $Callback, $Private = null);
+    public function authorizeRequest (qcREST_Interface_Request $Request, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null) : qcEvents_Promise;
     // }}}
     
     // {{{ getAuthorizedMethods
@@ -48,17 +40,11 @@
      * @param qcREST_Interface_Resource $Resource A resource this request is for or that is hosting the collection
      * @param qcREST_Interface_Collection $Collection (optional) The collection this request is for (if NULL, the request is regarding the resource)
      * @param qcREST_Interface_Request $Request (optional) A REST-Request assigned with this one
-     * @param callable $Callback A callback to pass the result to
-     * @param mixed $Private (optional) Any private data to pass to the callback
-     * 
-     * The callback will be raised in the form of
-     * 
-     *   function (qcREST_Interface_Authorizer $Self, array $Methods = null, mixed $Private = null) { }
      * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise A promise that resolves into an array of Methods once fullfulled
      **/
-    public function getAuthorizedMethods (qcREST_Interface_Resource $Resource, qcREST_Interface_Collection $Collection = null, qcREST_Interface_Request $Request = null, callable $Callback, $Private = null);
+    public function getAuthorizedMethods (qcREST_Interface_Resource $Resource, qcREST_Interface_Collection $Collection = null, qcREST_Interface_Request $Request = null) : qcEvents_Promise;
     // }}}
   }
 
