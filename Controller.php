@@ -777,7 +777,7 @@
             },
             function ($Representation = null) use ($Resource, $Request, $outputProcessor, $Headers, $Callback, $Private) {
               // Use representation if there is a negative status on it
-              if (($Representation instanceof qcREST_Interface_Representation) && ($Representation->getStatus () >= 400))
+              if ($Representation instanceof qcREST_Interface_Representation)
                 return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
               
               // Push back an error
@@ -827,7 +827,7 @@
                 },
                 function ($Representation = null) use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
                   // Use representation if there is a negative status on it
-                  if (($Representation instanceof qcREST_Interface_Representation) && ($Representation->getStatus () >= 400))
+                  if ($Representation instanceof qcREST_Interface_Representation)
                     return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
                   
                   // Give a normal bad reply if representation does not work
@@ -1259,7 +1259,7 @@
                 }
               );
             },
-            function ($Representation) use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
+            function ($Representation = null) use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
               // Bail out an error in debug-mode
               if (defined ('QCREST_DEBUG'))
                 trigger_error ('Failed to create child');
