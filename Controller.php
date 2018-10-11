@@ -365,119 +365,124 @@
         return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
       
       // Try to authenticate the request
-      return $this->authenticateRequest (
-        $Request,
-        function (qcREST_Interface_Controller $Self, qcEntity_Card $User = null, $Status)
-        use ($Request, $Callback, $Private) {
-          // Stop if authentication failed
-          if ($Status === false) {
-            if (defined ('QCREST_DEBUG'))
-              trigger_error ('Authentication failure');
-            
-            return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
-          }
-          
+      return $this->authenticateRequest ($Request)->then (
+        // Authentication was successfull
+        function ($User) use ($Request) {
           // Forward the authenticated user to Request
-          if ($User !== null)
+          if ($User instanceof qcEntity_Card)
             $Request->setUser ($User);
           
-          // Try to resolve to a resource
-          return $this->resolveURI (
-            $Request->getURI (),
-            $Request,
-            function (qcREST_Interface_Controller $Self, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null, $Segment = null)
-            use ($Request, $Callback, $Private) {
-              return $this->authorizeRequest (
-                $Request, $Resource, $Collection,
-                function (qcREST_Interface_Controller $Self, $Status)
-                use ($Request, $Resource, $Collection, $Segment, $Callback, $Private) {
-                  // Check authorization-status
-                  if (!$Status) {
+          return $User;
+        },
+        
+        // Authentication failed
+        function () use ($Request, $Callback, $Private) {
+          // Bail out an error
+          if (defined ('QCREST_DEBUG'))
+            trigger_error ('Authentication failure');
+          
+          // Forward the result
+          return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+        }
+      
+      // Proceed to resolve URI
+      )->then (function () use ($Request, $Callback, $Private) {
+        // Try to resolve to a resource
+        return $this->resolveURI (
+          $Request->getURI (),
+          $Request,
+          function (qcREST_Interface_Controller $Self, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null, $Segment = null)
+          use ($Request, $Callback, $Private) {
+            return $this->authorizeRequest (
+              $Request, $Resource, $Collection,
+              function (qcREST_Interface_Controller $Self, $Status)
+              use ($Request, $Resource, $Collection, $Segment, $Callback, $Private) {
+                // Check authorization-status
+                if (!$Status) {
+                  if (defined ('QCREST_DEBUG'))
+                    trigger_error ('Authorization failed');
+                  
+                  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED, null, $Callback, $Private);
+                }
+                
+                // Retrive default headers just for convienience
+                if ($Collection || $Resource)
+                  $Headers = $this->getDefaultHeaders ($Request, ($Collection ? $Collection : $Resource));
+                else
+                  $Headers = array ();
+                
+                // Check if there is a request-body
+                if (($cType = $Request->getContentType ()) !== null) {
+                  // Make sure we have a processor for this
+                  if (!is_object ($inputProcessor = $this->getProcessor ($cType))) {
                     if (defined ('QCREST_DEBUG'))
-                      trigger_error ('Authorization failed');
+                      trigger_error ('No input-processor for content-type ' . $cType);
                     
-                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED, null, $Callback, $Private);
+                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_UNSUPPORTED, $Headers, $Callback, $Private);
                   }
-                  
-                  // Retrive default headers just for convienience
-                  if ($Collection || $Resource)
-                    $Headers = $this->getDefaultHeaders ($Request, ($Collection ? $Collection : $Resource));
-                  else
-                    $Headers = array ();
-                  
-                  // Check if there is a request-body
-                  if (($cType = $Request->getContentType ()) !== null) {
-                    // Make sure we have a processor for this
-                    if (!is_object ($inputProcessor = $this->getProcessor ($cType))) {
-                      if (defined ('QCREST_DEBUG'))
-                        trigger_error ('No input-processor for content-type ' . $cType);
-                      
-                      return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_UNSUPPORTED, $Headers, $Callback, $Private);
-                    }
-                  } else
-                    $inputProcessor = null;
-                  
-                  // Find a suitable processor for the response
-                  $outputProcessor = null;
-                  
-                  foreach ($Request->getAcceptedContentTypes () as $Mimetype)
-                    if ($outputProcessor = $this->getProcessor ($Mimetype))
-                      break;
-                  
-                  if (!is_object ($outputProcessor))
-                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NO_FORMAT, $Headers, $Callback, $Private);
-                  
-                  // Check if we should expect a request-body
-                  if (in_array ($Request->getMethod (), array (qcREST_Interface_Request::METHOD_POST, qcREST_Interface_Request::METHOD_PUT, qcREST_Interface_Request::METHOD_PATCH))) {
-                    // Make sure we have an input-processor
-                    if (!$inputProcessor) {
-                      if (defined ('QCREST_DEBUG'))
-                        trigger_error ('No input-processor for request found');
-                      
-                      return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_ERROR, $Headers, $Callback, $Private);
-                    }
-                    
-                    // Make sure the request-body is present
-                    elseif (($Input = $Request->getContent ()) === null)
-                      return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_MISSING, $Headers, $Callback, $Private);
-                    
-                    // Try to parse the request-body
-                    elseif (!($Representation = $inputProcessor->processInput ($Input, $cType, $Request)))
-                      return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_ERROR, $Headers, $Callback, $Private);
-                  
-                  // ... or fail if there is content on the request
-                  } elseif (strlen ($Request->getContent ()) > 0) {
+                } else
+                  $inputProcessor = null;
+                
+                // Find a suitable processor for the response
+                $outputProcessor = null;
+                
+                foreach ($Request->getAcceptedContentTypes () as $Mimetype)
+                  if ($outputProcessor = $this->getProcessor ($Mimetype))
+                    break;
+                
+                if (!is_object ($outputProcessor))
+                  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NO_FORMAT, $Headers, $Callback, $Private);
+                
+                // Check if we should expect a request-body
+                if (in_array ($Request->getMethod (), array (qcREST_Interface_Request::METHOD_POST, qcREST_Interface_Request::METHOD_PUT, qcREST_Interface_Request::METHOD_PATCH))) {
+                  // Make sure we have an input-processor
+                  if (!$inputProcessor) {
                     if (defined ('QCREST_DEBUG'))
-                      trigger_error ('Content on request where none is expected');
+                      trigger_error ('No input-processor for request found');
                     
                     return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_ERROR, $Headers, $Callback, $Private);
+                  }
                   
-                  // Just make sure $Representation is set
-                  } else
-                    $Representation = null;
+                  // Make sure the request-body is present
+                  elseif (($Input = $Request->getContent ()) === null)
+                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_MISSING, $Headers, $Callback, $Private);
                   
-                  // Check if the resolver found a collection
-                  if ($Collection !== null)
-                    return $this->handleCollectionRequest ($Resource, $Collection, $Request, $Representation, $outputProcessor, $Segment, $Callback, $Private);
+                  // Try to parse the request-body
+                  elseif (!($Representation = $inputProcessor->processInput ($Input, $cType, $Request)))
+                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_ERROR, $Headers, $Callback, $Private);
+                
+                // ... or fail if there is content on the request
+                } elseif (strlen ($Request->getContent ()) > 0) {
+                  if (defined ('QCREST_DEBUG'))
+                    trigger_error ('Content on request where none is expected');
                   
-                  // Check if the resource found a resource
-                  if ($Resource !== null)
-                    return $this->handleResourceRequest ($Resource, $Request, $Representation, $outputProcessor, $Callback, $Private);
-                  
-                  // Return if the resolver did not find anything
-                  return $this->respondStatus (
-                    $Request,
-                    ($Request->getMethod () == $Request::METHOD_OPTIONS ? qcREST_Interface_Response::STATUS_OK : qcREST_Interface_Response::STATUS_NOT_FOUND),
-                    $Headers,
-                    $Callback,
-                    $Private
-                  );
-                }
-              ); // authorizeRequest()
-            }
-          ); // resolveURI()
-        }
-      ); // authenticateRequest()
+                  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_ERROR, $Headers, $Callback, $Private);
+                
+                // Just make sure $Representation is set
+                } else
+                  $Representation = null;
+                
+                // Check if the resolver found a collection
+                if ($Collection !== null)
+                  return $this->handleCollectionRequest ($Resource, $Collection, $Request, $Representation, $outputProcessor, $Segment, $Callback, $Private);
+                
+                // Check if the resource found a resource
+                if ($Resource !== null)
+                  return $this->handleResourceRequest ($Resource, $Request, $Representation, $outputProcessor, $Callback, $Private);
+                
+                // Return if the resolver did not find anything
+                return $this->respondStatus (
+                  $Request,
+                  ($Request->getMethod () == $Request::METHOD_OPTIONS ? qcREST_Interface_Response::STATUS_OK : qcREST_Interface_Response::STATUS_NOT_FOUND),
+                  $Headers,
+                  $Callback,
+                  $Private
+                );
+              }
+            ); // authorizeRequest()
+          }
+        ); // resolveURI()
+      }); // authenticateRequest()
     }
     // }}}
     
@@ -584,59 +589,30 @@
      * Try to authenticate a given request
      * 
      * @param qcREST_Interface_Request $Request
-     * @param callable $Callback
-     * @param mixed $Private (optional)
-     * 
-     * The callback will be raised in the form of
-     * 
-     *   function (qcREST_Interface_Controller $Self, qcEntity_Card $User = null, bool $Status, mixed $Private = null) { }
-     * 
-     * $User may contain an user-entity that was identified for the request,
-     * $Status indicated wheter the request should be processed or not
      * 
      * @access private
-     * @return void
+     * @return qcEvents_Promise A promise that resolves to a qcEntity_Card-Instance or NULL
      **/
-    private function authenticateRequest (qcREST_Interface_Request $Request, callable $Callback, $Private = null) {
+    private function authenticateRequest (qcREST_Interface_Request $Request) : qcEvents_Promise {
       // Check if there are authenticators to process
       if (count ($this->Authenticators) == 0)
-        return call_user_func ($Callback, $this, null, true, $Private);
-      
-      // Create a queue
-      $Queue = new qcEvents_Queue;
-      $Queue->setMode ($Queue::MODE_SERIAL);
-      $Queue->onResult (
-        function (qcEvents_Queue $Queue, array $Result)
-        use ($Callback, $Private) {
-          // Check if this is a definite call
-          if ($Result [2] === null)
-            return;
-          
-          // Stop the queue
-          $Queue->stop ();
-          
-          // Forward the result
-          return call_user_func ($Callback, $this, $Result [3], !!$Result [2], $Private);
-        }
-      );
-      $Queue->finish (
-        function (qcEvents_Queue $Queue, array $Results)
-        use ($Callback, $Private) {
-          // Try to find a user-entity
-          foreach ($Results as $Result)
-            if ($Result [3])
-              return call_user_func ($Callback, $this, $Result [3], !!$Result [2], $Private);
-          
-          // Always return
-          return call_user_func ($Callback, $this, null, true, $Private);
-        }
-      );
+        return qcEvents_Promise::resolve (null);
       
       // Call all authenticators
       $Authenticators = $this->Authenticators;
       
       foreach ($Authenticators as $Authenticator)
-        $Queue->addCall ($Authenticator, 'authenticateRequest', $Request);
+        $Promises [] = $Authenticator->authenticateRequest ($Request);
+      
+      return qcEvents_Promise::all ($Promises)->then (function ($Results) {
+        // Check if any user was found
+        foreach ($Results as $User)
+          if ($User instanceof qcEntity_Card)
+            return $User;
+        
+        // ... or be a bit laisser faire
+        return null;
+      });
     }
     // }}}
     

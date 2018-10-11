@@ -24,20 +24,11 @@
      * Try to authenticate a given request
      * 
      * @param qcREST_Interface_Request $Request
-     * @param callable $Callback
-     * @param mixed $Private (optional)
-     * 
-     * The callback will be raised in the form of
-     *   
-     *   function (qcREST_Interface_Authenticator $Self, qcREST_Interface_Request $Request, bool $Status, qcEntity_Card $Entity = null, mixed $private = null) { }
-     * 
-     * $Status indicated wheter the request should be processed or not - if unsure this should be NULL,
-     * $User may contain an user-entity that was identified for the request
      *    
-     * @access private
-     * @return void
+     * @access public
+     * @return qcEvents_Promise A promise that resolves to a qcEntity_Card-Instance or NULL
      **/
-    public function authenticateRequest (qcREST_Interface_Request $Request, callable $Callback, $Private = null);
+    public function authenticateRequest (qcREST_Interface_Request $Request) : qcEvents_Promise;
     // }}}
     
     // {{{ getSchemes
