@@ -178,18 +178,14 @@
     /**
      * Retrive a child-collection for this node
      * 
-     * @param callable $Callback
-     * @param mixed $Private (optional)
-     * 
-     * The callback will be raised in the form of
-     * 
-     *   function (qcREST_Interface_Resource $Self, qcREST_Interface_Collection $Collection = null, mixed $Private = null) { }
-     * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function getChildCollection (callable $Callback, $Private = null) {
-      call_user_func ($Callback, $this, $this->ChildCollection, $Private);
+    public function getChildCollection () : qcEvents_Promise {
+      if ($this->ChildCollection)
+        return qcEvents_Promise::resolve ($this->ChildCollection);
+      
+      return qcEvents_Promise::reject ();
     }
     // }}}
     
@@ -241,24 +237,17 @@
      * Update this resource with a given representation
      * 
      * @param qcREST_Interface_Representation $Representation Representation to update this resource with
-     * @param callable $Callback (optional) A callback to fire once the operation was completed
-     * @param mixed $Private (optional) Some private data to pass to the callback
      * @param qcREST_Interface_Request $Request (optional) A Request-Object associated with this call
      * 
-     * The callback will be raised once the operation was completed in the form of:
-     * 
-     *   function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation, bool $Status, mixed $Private) { }
-     * 
      * @access public
-     * @return bool  
+     * @return qcEvents_Promise 
      **/
-    public function setRepresentation (qcREST_Interface_Representation $Representation, callable $Callback = null, $Private = null, qcREST_Interface_Request $Request = null) {
+    public function setRepresentation (qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request = null) : qcEvents_Promise {
+      // Store the attribues
       $this->Attributes = (array)$Representation->toArray ();
       
-      if ($Callback)
-        call_user_func ($Callback, $this, $Representation, true, $Private);
-      
-      return true;
+      // Push back the representation
+      return qcEvents_Promise::resolve ($Representation);
     }
     // }}}
     

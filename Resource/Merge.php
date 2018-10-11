@@ -195,18 +195,11 @@
     /**
      * Retrive a child-collection for this node
      * 
-     * @param callable $Callback
-     * @param mixed $Private (optional)
-     * 
-     * The callback will be raised in the form of
-     * 
-     *   function (qcREST_Interface_Resource $Self, qcREST_Interface_Collection $Collection = null, mixed $Private = null) { }
-     * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function getChildCollection (callable $Callback, $Private = null) {
-      call_user_func ($Callback, $this, $this, $Private);
+    public function getChildCollection () : qcEvents_Promise {
+      return qcEvents_Promise::resolve ($this);
     }
     // }}}
     
@@ -279,18 +272,17 @@
       // Prepare the promises
       $Promises = array ();
       
-      $Queue = new qcEvents_Queue;
-      
       foreach ($this->Resources as $Resource)
         if ($Resource->hasChildCollection ())
-          $Promises [] = new qcEvents_Promise (function ($resolve, $reject) use ($Resource) {
-            $Resource->getChildCollection (function ($Resource, qcREST_Interface_Collection $Collection = null) use ($resolve, $reject) {
-              $resolve ($Collection);
-            });
-          })->then (function (qcREST_Interface_Collection $Collection = null) use ($User) {
-            if ($Collection && $Collection->isBrowsable ($User))
+          $Promises [] = $Resource->getChildCollection ()->then (
+            function (qcREST_Interface_Collection $Collection) use ($User) {
+              if (!$Collection->isBrowsable ($User))
+                return null;
+              
               return $Collection->getChildren ();
-          });
+            },
+            function () { }
+          );
       
       foreach ($this->Collections as $Collection)
         if ($Collection->isBrowsable ($User))

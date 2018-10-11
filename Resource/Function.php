@@ -86,21 +86,13 @@
      * Update this resource with a given representation
      * 
      * @param qcREST_Interface_Representation $Representation Representation to update this resource with
-     * @param callable $Callback (optional) A callback to fire once the operation was completed
-     * @param mixed $Private (optional) Some private data to pass to the callback
-     * 
-     * The callback will be raised once the operation was completed in the form of:
-     *    
-     *   function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation, bool $Status, mixed $Private) { }
+     * @param qcREST_Interface_Request $Request (optional) The request that triggered this call
      * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function setRepresentation (qcREST_Interface_Representation $Representation, callable $Callback = null, $Private = null) {
-      if ($Callback)
-        call_user_func ($Callback, $this, $Representation, false, $Private);
-      
-      return true;
+    public function setRepresentation (qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request = null) : qcEvents_Promise {
+      return qcEvents_Promise::reject ('Unimplemented');
     }
     // }}}
     
