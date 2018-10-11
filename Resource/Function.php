@@ -150,69 +150,55 @@
      * 
      * @param qcREST_Interface_Representation $Representation Representation to create the child from
      * @param string $Name (optional) Explicit name for the child, if none given the directory should generate a new one
-     * @param callable $Callback (optional) A callback to fire once the operation was completed
-     * @param mixed $Private (optional) Some private data to pass to the callback
      * @param qcREST_Interface_Request $Request (optional) The Request that triggered this function-call
      * 
-     * The callback will be raised once the operation was completed in the form of:
-     * 
-     *   function (qcREST_Interface_Collection $Self qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null, mixed $Private) { }
-     * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function createChild (qcREST_Interface_Representation $Representation, $Name = null, callable $Callback = null, $Private = null, qcREST_Interface_Request $Request = null) {
-      // Don't do anything without a valid callback
-      if (!$Callback)
-        return;
-      
-      // Check if the call is synchronous
-      if (!$this->Async)
-        return $this->forwardResult (call_user_func ($this->Callback, $Representation, $Request), false, $Callback, $Private);
-      
-      return call_user_func ($this->Callback, $Representation, $Request, function ($Result) use ($Callback, $Private) {
-        $this->forwardResult ($Result, false, $Callback, $Private);
-      });
+    public function createChild (qcREST_Interface_Representation $Representation, $Name = null, qcREST_Interface_Request $Request = null) : qcEvents_Promise {
+      return $this->invoke ($Representation, $Request);
     }
     // }}}
     
-    // {{{ forwardResult
+    // {{{ invoke
     /**
-     * Forward the result of a function-call
+     * Run the callback and return result as a promise
      * 
-     * @param mixed $Result
-     * @param bool $Short (optional)
-     * @param callable $Callback (optional)
-     * @param mixed $Private (optional)
-     *  
+     * @param qcREST_Interface_Representation $Representation
+     * @param qcREST_Interface_Request $Request (optional)
+     * 
      * @access private
-     * @return void
+     * @return qcEvents_Promise
      **/
-    private function forwardResult ($Result, $Short = false, callable $Callback = null, $Private = null) {
-      // Check if we have to do anything
-      if (!$Callback)
-        return;
+    private function invoke (qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request = null) : qcEvents_Promise {
+      // Create the promise
+      if ($this->Async)
+        $Promise = new qcEvents_Promise (function ($resolve, $reject) {
+          call_user_func ($this->Callback, $Representation, $Request, function ($Result) use ($resolve, $reject) {
+            $resolve ($Result);
+          });
+        });
+      else
+        $Promise = qcEvents_Promise::resolve (call_user_func ($this->Callback, $Representation, $Request));
       
-      // Process the result
-      if ($Result instanceof qcREST_Representation) {
-        if (count ($Result) == 0)
-          $Result ['Result'] = ($Result->getStatus () < 400);
-      } else {
-        $Info = $Result;
+      return $Promise->then (function ($Result) {
+        // Process the result
+        if ($Result instanceof qcREST_Representation) {
+          if (count ($Result) == 0)
+            $Result ['Result'] = ($Result->getStatus () < 400);
+        } else {
+          $Info = $Result;
+          
+          if (is_object ($Info))
+            $Info = (array)$Info;
+          
+          $Result = new qcREST_Representation (is_array ($Info) ? $Info : array ('Result' => $Info));
+          $Result->setStatus ($Info == false ? 500 : ($Info !== null ? 200 : 400));
+          $Result->allowRedirect (false);
+        }
         
-        if (is_object ($Info))
-          $Info = (array)$Info;
-        
-        $Result = new qcREST_Representation (is_array ($Info) ? $Info : array ('Result' => $Info));
-        $Result->setStatus ($Info == false ? 500 : ($Info !== null ? 200 : 400));
-        $Result->allowRedirect (false);
-      }
-      
-      // Forward the result
-      if ($Short)
-        return call_user_func ($Callback, $this, $Result, $Private);
-      
-      return call_user_func ($Callback, $this, $this, $Result, $Private);
+        return $Result;
+      });
     }
     // }}}
     
@@ -233,17 +219,14 @@
      * @return void
      **/
     public function triggerFunction (array $Params, callable $Callback = null, $Private = null, qcREST_Interface_Request $Request = null) {
-      // Create Representation
-      $Representation = new qcREST_Representation ($Params);
-      
-      // Check if the call is synchronous
-      if (!$this->Async)
-        return $this->forwardResult (call_user_func ($this->Callback, $Representation, $Request), true, $Callback, $Private);
-      
-      // Call asynchronous
-      return call_user_func ($this->Callback, $Representation, $Request, function ($Result) use ($Callback, $Private) {
-        $this->forwardResult ($Result, true, $Callback, $Private);
-      });
+      return $this->invoke (new qcREST_Representation ($Params), $Request)->then (
+        function ($Result) use ($Callback, $Private) {
+          call_user_func ($Callback, $this, $Result, $Private);
+        },
+        function ($E) {
+          call_user_func ($Callback, $this, null, $Private);
+        }
+      );
     }
     // }}}
   }

@@ -1374,22 +1374,9 @@
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, $Headers, $Callback, $Private);
           }
           
-          return $Collection->createChild (
-            $Representation,
-            $Segment,
-            function (qcREST_Interface_Collection $Self, qcREST_Interface_Resource $Child = null, qcREST_Interface_Representation $Representation = null)
-            use ($Headers, $outputProcessor, $Callback, $Private, $Request, $Resource) {
-              // Check if a new child was created
-              if (!$Child) {
-                if (defined ('QCREST_DEBUG'))
-                  trigger_error ('Failed to create child');
-                
-                if ($Representation)
-                  return $this->handleRepresentation ($Request, $Resource, $Self, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
-                
-                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
-              }
-              
+          return qcEvents_Promise::ensure ($Collection->createChild ($Representation, $Segment, $Request))->then (
+            function (qcREST_Interface_Resource $Child, qcREST_Interface_Representation $Representation = null)
+            use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
               // Create URI for newly created child
               $Headers ['Location'] = $URI = $this->getURI ($Child);
               
@@ -1413,8 +1400,17 @@
                 $Request
               );
             },
-            null,
-            $Request
+            function ($Representation) use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
+              // Bail out an error in debug-mode
+              if (defined ('QCREST_DEBUG'))
+                trigger_error ('Failed to create child');
+              
+              // Forward the response
+              if ($Representation instanceof qcREST_Interface_Representation)
+                return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
+              
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
+            }
           );
         
         // Replace all resources on this directory (PUT) with new ones or just add a new set (PATCH)
@@ -1542,7 +1538,13 @@
                 foreach ($Create as $Name=>$childAttributes) {
                   unset ($Create [$Name]);
                   
-                  return $Resource->createChild (new qcREST_Representation ($childAttributes), $Name, $func, null, $Request);
+                  return qcEvents_Promise::ensure ($Resource->createChild (new qcREST_Representation ($childAttributes), $Name, $Request))->then (
+                    function (qcREST_Interface_Resource $Child, qcREST_Interface_Representation $Representation = null)
+                    use ($Resource, $func) {
+                      $func ($Resource, $Child, $Representation);
+                    },
+                    function () use ($Resource, $func) { $func ($Resource, null, null); }
+                  );
                 }
                 
                 // Try to remove removals
@@ -1639,7 +1641,7 @@
       if (!is_array ($Meta))
         $Meta = $Representation->getMeta ();
       else
-        $Meta = array_merge ($Representation->getMeta (), $Meta);
+        $Meta = array_merge ($Meta, $Representation->getMeta ());
       
       // Remove any redirects if unwanted
       if (isset ($Meta ['Location']) && !$Representation->allowRedirect ())
