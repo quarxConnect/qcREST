@@ -59,55 +59,45 @@
     /**
      * Retrive a representation of this resource
      * 
-     * @param callable $Callback A callback to fire once the operation was completed
-     * @param mixed $Private (optional) Some private data to pass to the callback
      * @param qcREST_Interface_Request $Request (optional) A Request-Object associated with this call
      * 
-     * The callback will be raised once the operation was completed in the form of:
-     *    
-     *   function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation = null, mixed $Private) { }
-     * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/  
-    public function getRepresentation (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
+    public function getRepresentation (qcREST_Interface_Request $Request = null) : qcEvents_Promise {
       // Prepare the attributes
-      $Queue = new qcEvents_Queue;
+      $Promises = array ();
       
       foreach ($this->Resources as $Resource)
-        $Queue->addCall ($Resource, $getRepresentation, null, null, $Request);
-       
-      $Queue->finish (
-        function (qcEvents_Queue $Queue, array $Results)
-        use ($Callback, $Private) {
-          // Setup final attributes
-          $Attributes = array (
-            'type' => 'Merge-Resource',
-            'items' => array (),
-          );
+        $Promises [] = $Resource->getRepresentation ($Request)->then (function ($Result) use ($Resource) { return array ($Resource, $Result); });
+      
+      return qcEvents_Promise::all ($Promises)->then (function ($Results) {
+        // Setup final attributes
+        $Attributes = array (
+          'type' => 'Merge-Resource',
+          'items' => array (),
+        );
+        
+        // Append each response to attributes
+        foreach ($Results as $Result) {
+          // Check if there was a representation received
+          if (!is_object ($Result [1]))
+            continue;
           
-          // Append each response to attributes
-          foreach ($Results as $Result) {
-            // Check if there was a representation received
-            if (!is_object ($Result [1]))
-              continue;
-            
-            // Find the right place for this resource
-            $Name = $Result [0]->getName ();
-            $Suff = 0;
-            
-            while (array_key_exists ($Name . ($Suff > 0 ? '_' . $Suff : ''), $Attributes ['items']))
-              $Suff++;
-            
-            // Push the attributes to the collection
-            $Attributes ['items'][$Name . ($Suff > 0 ? '_' . $Suff : '')] = $Result [1]->toArray ();
-          }
+          // Find the right place for this resource
+          $Name = $Result [0]->getName ();
+          $Suff = 0;
           
-          // Run the final callback
-          call_user_func ($Callback, $this, new qcREST_Representation ($Attributes), $Private);
-        }, null,
-        true
-      );
+          while (array_key_exists ($Name . ($Suff > 0 ? '_' . $Suff : ''), $Attributes ['items']))
+            $Suff++;
+          
+          // Push the attributes to the collection
+          $Attributes ['items'][$Name . ($Suff > 0 ? '_' . $Suff : '')] = $Result [1]->toArray ();
+        }
+          
+        // Run the final callback
+        return new qcREST_Representation ($Attributes);
+      });
     }
     // }}}
     

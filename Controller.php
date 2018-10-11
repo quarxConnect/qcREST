@@ -791,19 +791,14 @@
           }
           
           // Retrive the attributes
-          return $Resource->getRepresentation (
-            function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation = null)
-            use ($Request, $Headers, $outputProcessor, $Callback, $Private) {
-              // Check if the request was successfull
-              if ($Representation === null) {
-                trigger_error ('Could not retrive attributes from resource');
-                
-                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
-              }
-              
+          return qcEvents_Promise::ensure ($Resource->getRepresentation ($Request))->then (
+            function (qcREST_Interface_Representation $Representation)
+            use ($Resource, $Request, $Headers, $outputProcessor, $Callback, $Private) {
               return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, $Headers, $Callback, $Private);
-            }, null,
-            $Request
+            },
+            function () use ($Request, $Headers, $Callback, $Private) {
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
+            }
           );
         
         // Check if a new sub-resource is requested
@@ -871,22 +866,16 @@
           }
           
           // Retrive the attributes first
-          return $Resource->getRepresentation (
-            function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $currentRepresentation = null)
-            use ($Request, $Representation, $Headers, $outputProcessor, $Callback, $Private) {
-              // Check if the attributes were retrived
-              if ($currentRepresentation === null) {
-                trigger_error ('Could not retrive current attribute-set');
-                
-                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
-              }
-              
+          return qcEvents_Promise::ensure ($Resource->getRepresentation ($Request))->then (
+            function (qcREST_Interface_Representation $currentRepresentation)
+            use ($Resource, $Request, $Representation, $Headers, $outputProcessor, $Callback, $Private) {
               // Update Representation
               $requireAttributes = false;
               
               foreach ($Representation as $Key=>$Value)
                 if (!$requireAttributes || isset ($currentRepresentation [$Key])) {
                   $currentRepresentation [$Key] = $Value;
+                  
                   unset ($Representation [$Key]);
                 } else
                   return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_ERROR, $Headers, $Callback, $Private);
@@ -919,8 +908,10 @@
                 null,
                 $Request
               );
-            }, null,
-            $Request
+            },
+            function () use ($Request, $Headers, $Callback, $Private) {
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
+            }
           );
         
         // Remove this resource
@@ -1115,6 +1106,45 @@
               if (($First > 0) || ($Last !== null))
                 $Representation->addMeta ('X-Pagination-Performance-Warning', 'Using pagination without support on backend');
               
+              // Try to finalize
+              $Queue->onResult (
+                function (qcEvents_Queue $Queue, array $Result, $Instance = null)
+                use ($Representation) {
+                  if ($Instance)
+                    array_unshift ($Result, $Instance);
+
+                  // Make sure its the result of a resource
+                  if (!($Result [0] instanceof qcREST_Interface_Resource))
+                    return;
+
+                  // Make sure there is a second parameter
+                  if (!isset ($Result [1]) || ($Result [1] === null))
+                    return;
+
+                  // Proceed with represenations
+                  if (!($Result [1] instanceof qcREST_Interface_Representation))
+                    return;
+
+                  // Find item on representation
+                  if (!isset ($Result [2]) || !is_object ($Result [2]))
+                    foreach ($Representation ['items'] as $Item)
+                      if ($Item->_id == $Result [0]->getName ()) {
+                        $Result [2] = $Item;
+                        break;
+                      }
+
+                  if (!is_object ($Result [2]))
+                    return;
+
+                  // Patch item on representation
+                  foreach ($Result [1] as $Key=>$Value)
+                    if (!in_array ($Key, array ('_id', '_href', '_collection', '_permissions')))
+                      $Result [2]->$Key = $Value;
+                    else
+                      trigger_error ('Skipping reserved key ' . $Key);
+                }
+              );
+              
               // Append children to the listing
               $Representation ['idAttribute'] = $Collection->getNameAttribute ();
               $Items = array ();
@@ -1218,44 +1248,8 @@
                   continue;
                 
                 // Expand the child
-                $Queue->addCall ($Child, ($Aware ? 'getCollectionRepresentation' : 'getRepresentation'), null, $Item, $Request);
+                $Queue->addCall ($Child, ($Aware ? 'getCollectionRepresentation' : 'getRepresentation'), $Request);
               }
-              
-              // Try to finalize
-              $Queue->onResult (
-                function (qcEvents_Queue $Queue, array $Result)
-                use ($Representation) {
-                  // Make sure its the result of a resource
-                  if (!($Result [0] instanceof qcREST_Interface_Resource))
-                    return;
-                  
-                  // Make sure there is a second parameter
-                  if (!isset ($Result [1]) || ($Result [1] === null))
-                    return;
-                  
-                  // Proceed with represenations
-                  if (!($Result [1] instanceof qcREST_Interface_Representation))
-                    return;
-                  
-                  // Find item on representation
-                  if (!is_object ($Result [2]))
-                    foreach ($Representation ['items'] as $Item)
-                      if ($Item->_id == $Result [0]->getName ()) {
-                        $Result [2] = $Item;
-                        break;
-                      }
-                  
-                  if (!is_object ($Result [2]))
-                    return;
-                  
-                  // Patch item on representation
-                  foreach ($Result [1] as $Key=>$Value)
-                    if (!in_array ($Key, array ('_id', '_href', '_collection', '_permissions')))
-                      $Result [2]->$Key = $Value;
-                    else
-                      trigger_error ('Skipping reserved key ' . $Key);
-                }
-              );
               
               return $Queue->finish (
                 function ()
@@ -1388,16 +1382,14 @@
               if (!$this->alwaysRepresentation || ($Child->isReadable ($Request->getUser ()) !== true))
                 return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_STORED, $Headers, $Callback, $Private);
               
-              return $Child->getRepresentation (
-                function (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation = null)
-                use ($Headers, $outputProcessor, $Request, $URI, $Callback, $Private) {
-                  // Check if we retrive a representation for this
-                  if (!$Representation)
-                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CREATED, $Headers, $Callback, $Private);
-                  
+              return qcEvents_Promise::ensure ($Child->getRepresentation ($Request))->then (
+                function (qcREST_Interface_Representation $Representation)
+                use ($Request, $Resource, $Headers, $outputProcessor, $Callback, $Private) {
                   return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_CREATED, $Headers, $Callback, $Private);
-                }, null,
-                $Request
+                },
+                function () use ($Request, $Headers, $Callback, $Private) {
+                  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CREATED, $Headers, $Callback, $Private);
+                }
               );
             },
             function ($Representation) use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
@@ -1506,13 +1498,9 @@
                   
                   // Check if we are PATCHing and should *really* PATCH
                   if (($Removals === null) && (!defined ('QCREST_PATCH_ON_COLLECTION_PATCHES_RESOURCES') || QCREST_PATCH_ON_COLLECTION_PATCHES_RESOURCES))
-                    return $Child->getRepresentation (
-                      function (qcREST_Interface_Resource $Child, qcREST_Interface_Representation $currentRepresentation = null)
-                      use ($func, $childRepresentation, $Request) {
-                        // Check if the current representation could be retrived
-                        if ($currentRepresentation === null)
-                          return call_user_func ($func, $Child, $childRepresentation, false);
-                        
+                    return qcEvents_Promise::ensure ($Child->getRepresentation ($Request))->then (
+                      function (qcREST_Interface_Representation $currentRepresentation)
+                      use ($Child, $func, $childRepresentation, $Request) {
                         // Update Representation   
                         $requireAttributes = false;
                         
@@ -1526,8 +1514,9 @@
                         // Forward the update
                         return $Child->setRepresentation ($currentRepresentation, $func, null, $Request);
                       },
-                      null,
-                      $Request
+                      function () use ($func, $Child, $childRepresentation) {
+                        return call_user_func ($func, $Child, $childRepresentation, false);
+                      }
                     );
                   
                   // Treat the update as a complete Representation

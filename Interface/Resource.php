@@ -109,18 +109,12 @@
     /**
      * Retrive a representation of this resource
      * 
-     * @param callable $Callback A callback to fire once the operation was completed
-     * @param mixed $Private (optional) Some private data to pass to the callback
      * @param qcREST_Interface_Request $Request (optional) A Request-Object associated with this call
      * 
-     * The callback will be raised once the operation was completed in the form of:
-     * 
-     *   function (qcREST_Interface_Resource $Self, qcREST_Interface_Representation $Representation = null, mixed $Private) { }
-     * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function getRepresentation (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null);
+    public function getRepresentation (qcREST_Interface_Request $Request = null) : qcEvents_Promise;
     // }}}
     
     // {{{ setRepresentation
