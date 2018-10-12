@@ -375,13 +375,20 @@
         },
         
         // Authentication failed
-        function () use ($Request, $Callback, $Private) {
+        function ($Representation = null) use ($Request, $Callback, $Private) {
+          // Forward Representation of the error if there is one
+          if ($Representation instanceof qcREST_Interface_Representation)
+            return $this->handleRepresentation ($Request, null, null, $Representation, null, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+          
           // Bail out an error
           if (defined ('QCREST_DEBUG'))
             trigger_error ('Authentication failure');
           
           // Forward the result
-          return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+          $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+          
+          // Make sure the promise is rejected
+          throw new exception ('Authentication failed');
         }
       
       // Proceed to resolve URI
@@ -471,7 +478,11 @@
               },
               
               // Authorization failed
-              function () use ($Request, $Callback, $Private) {
+              function ($Representation = null) use ($Request, $Resource, $Collection, $Callback, $Private) {
+                // Forward Representation of the error if there is one
+                if ($Representation instanceof qcREST_Interface_Representation)
+                  return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, null, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED, null, $Callback, $Private);
+                
                 // Bail out an error
                 if (defined ('QCREST_DEBUG'))
                   trigger_error ('Authorization failed');
@@ -727,7 +738,12 @@
             use ($Resource, $Request, $Headers, $outputProcessor, $Callback, $Private) {
               return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, $Headers, $Callback, $Private);
             },
-            function () use ($Request, $Headers, $Callback, $Private) {
+            function ($Representation = null) use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
+              // Forward Representation of the error if there is one
+              if ($Representation instanceof qcREST_Interface_Representation)
+                return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
+
+              // Forward the error
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
             }
           );
@@ -739,7 +755,11 @@
             function (qcREST_Interface_Collection $Collection) use ($Resource, $Request, $Representation, $outputProcessor, $Callback, $Private) {
               return $this->handleCollectionRequest ($Resource, $Collection, $Request, $Representation, $outputProcessor, null, $Callback, $Private);
             },
-            function () use ($Request, $Headers, $Callback, $Private) {
+            function ($Representation = null) use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
+              // Forward Representation of the error if there is one
+              if ($Representation instanceof qcREST_Interface_Representation)
+                return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_NOT_ALLOWED, $Headers, $Callback, $Private);
+
               // Bail out an error
               if (defined ('QCREST_DEBUG'))
                 trigger_error ('No child-collection');
@@ -835,7 +855,12 @@
                 }
               );
             },
-            function () use ($Request, $Headers, $Callback, $Private) {
+            function ($Represenation = null) use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
+              // Forward Representation of the error if there is one
+              if ($Representation instanceof qcREST_Interface_Representation)
+                return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
+              
+              // Forward the error
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
             }
           );
@@ -858,7 +883,12 @@
             function () use ($Request, $Headers, $Callback, $Private) {
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_REMOVED, $Headers, $Callback, $Private);
             },
-            function () use ($Request, $Headers, $Callback, $Private) {
+            function ($Representation = null) use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
+              // Forward Representation of the error if there is one
+              if ($Representation instanceof qcREST_Interface_Representation)
+                return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
+
+              // Forward the error
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
             }
           );
@@ -991,7 +1021,7 @@
           
           // Request the children of this resource
           return qcEvents_Promise::ensure ($Collection->getChildren ($Request))->then (
-            function (array $Children = null, qcREST_Interface_Representation $Representation = null)
+            function (array $Children, qcREST_Interface_Representation $Representation = null)
             use ($Collection, $Request, $Resource, $outputProcessor, $Headers, $First, $Last, $Sort, $Search, $User, $Order, $Callback, $Private) {
               // Prepare representation
               if (!$Representation)
@@ -1197,23 +1227,20 @@
                 }
               );
             },
-            function ($Representation) use ($Collection, $Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
-              // Make sure Representation is valid
-              if (!($Representation instanceof qcREST_Interface_Representation))
-                $Representation = null;
-              
+            function ($Representation = null) use ($Collection, $Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
               // Make sure that collection-parameters are reset
               if ($Collection instanceof qcREST_Interface_Collection_Extended)
                 $Collection->resetParameters ();
+              
+              // Forward Representation of the error if there is one
+              if ($Representation instanceof qcREST_Interface_Representation)
+                return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
               
               // Bail out an error
               if (defined ('QCREST_DEBUG'))
                 trigger_error ('Failed to retrive the children');
               
-              // Callback our parent
-              if ($Representation)
-                return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
-              
+              // Forward the error
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
             }
           );
@@ -1260,14 +1287,15 @@
               );
             },
             function ($Representation = null) use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
+              // Forward Representation of the error if there is one
+              if ($Representation instanceof qcREST_Interface_Representation)
+                return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
+              
               // Bail out an error in debug-mode
               if (defined ('QCREST_DEBUG'))
                 trigger_error ('Failed to create child');
               
-              // Forward the response
-              if ($Representation instanceof qcREST_Interface_Representation)
-                return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
-              
+              // Forward the error
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
             }
           );
@@ -1302,16 +1330,9 @@
           }
           
           // Request the children of this resource
-          return $Collection->getChildren (
-            function (qcREST_Interface_Collection $Collection, array $Children = null)
-            use ($Removals, $Request, $Resource, $Representation, $Headers, $outputProcessor, $Callback, $Private) {
-              // Check if the call was successfull 
-              if ($Children === null) {
-                trigger_error ('Failed to retrive the children');
-                
-                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
-              }
-              
+          return qcEvents_Promise::ensure ($Collection->getChildren ($Request))->then (
+            function (array $Children)
+            use ($Removals, $Request, $Resource, $Collection, $Representation, $Headers, $outputProcessor, $Callback, $Private) {
               // Split children up into updates and removals
               $Create = $Representation;
               $Updates = array ();
@@ -1437,8 +1458,20 @@
               
               // Dispatch to update-function
               return call_user_func ($func);
-            }, null,
-            $Request
+            },
+            function ($Representation = null)
+            use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
+              // Forward Representation of the error if there is one
+              if ($Representation instanceof qcREST_Interface_Representation)
+                return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
+              
+              // Bail out an error in debug-mode
+              if (defined ('QCREST_DEBUG'))
+                trigger_error ('Failed to retrive the children');
+              
+              // Forward the error
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
+            }
           );
         
         // Delete the entire collection
@@ -1458,7 +1491,12 @@
             function () use ($Request, $Headers, $Callback, $Private) {
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_OK, $Headers, $Callback, $Private);
             },
-            function () use ($Request, $Headers, $Callback, $Private) {
+            function ($Representation = null) use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
+              // Forward Representation of the error if there is one
+              if ($Representation instanceof qcREST_Interface_Representation)
+                return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
+
+              // Forward the error
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
             }
           );
@@ -1483,10 +1521,10 @@
      * Process Representation and generate output
      * 
      * @param qcREST_Interface_Request $Request
-     * @param qcREST_Interface_Resource $Resource
+     * @param qcREST_Interface_Resource $Resource (optional)
      * @param qcREST_Interface_Collection $Collection (optional)
      * @param qcREST_Interface_Representation $Representation
-     * @param qcREST_Interface_Processor $outputProcessor
+     * @param qcREST_Interface_Processor $outputProcessor (optional)
      * @param enum $Status
      * @param array $Meta (optional)
      * @param callable $Callback
@@ -1497,10 +1535,10 @@
      **/
     private function handleRepresentation (
       qcREST_Interface_Request $Request,
-      qcREST_Interface_Resource $Resource,
+      qcREST_Interface_Resource $Resource = null,
       qcREST_Interface_Collection $Collection = null,
       qcREST_Interface_Representation $Representation,
-      qcREST_Interface_Processor $outputProcessor,
+      qcREST_Interface_Processor $outputProcessor = null,
       $Status,
       array $Meta = null,
       callable $Callback, $Private = null
@@ -1528,8 +1566,9 @@
         return $this->respondStatus ($Request, $Status, $Meta, $Callback, $Private);
       
       // Process the output
+      # TODO: FIX Make sure we have an output-processor
       return $outputProcessor->processOutput (
-        function (qcREST_Interface_Processor $Processor, $Output, $OutputType, qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private, $Status, $Meta) {
+        function (qcREST_Interface_Processor $Processor, $Output, $OutputType, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private, $Status, $Meta) {
           // Check if the processor returned an error
           if ($Output === false) {
             trigger_error ('Output-Processor failed');
@@ -1641,12 +1680,12 @@
      * Retrive a set of allowed Verbs for a given Resource (Resource or collection)
      * 
      * @param qcREST_Interface_Request $Request
-     * @param qcREST_Interface_Entity $Resource
+     * @param qcREST_Interface_Entity $Resource (optional)
      * 
      * @access private
      * @return array
      **/
-    private function getAllowedMethods (qcREST_Interface_Request $Request, qcREST_Interface_Entity $Resource) {
+    private function getAllowedMethods (qcREST_Interface_Request $Request, qcREST_Interface_Entity $Resource = null) {
       // Setup result
       $Methods = array ('OPTIONS');
       
