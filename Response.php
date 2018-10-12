@@ -76,6 +76,20 @@
       return $this->Status;
     }
     // }}}
+    
+    // {{{ setStatus
+    /**
+     * Update the status
+     * 
+     * @param enum $Status
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setStatus ($Status) {
+      $this->Status = (int)$Status;
+    }
+    // }}}
 
     // {{{ getMeta
     /**

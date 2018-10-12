@@ -63,6 +63,18 @@
     public function getStatus ();
     // }}}
     
+    // {{{ setStatus
+    /**
+     * Update the status
+     * 
+     * @param enum $Status
+     * 
+     * @access public
+     * @return void
+     **/
+    public function setStatus ($Status);
+    // }}}
+    
     // {{{ getMeta
     /**
      * Retrive the meta-data of this response

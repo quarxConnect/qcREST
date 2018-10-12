@@ -20,6 +20,7 @@
   
   require_once ('qcREST/Interface/Processor.php');
   require_once ('qcREST/Representation.php');
+  require_once ('qcEvents/Promise.php');
   
   class qcREST_Processor_URL implements qcREST_Interface_Processor {
     private static $Types = array (
@@ -120,24 +121,16 @@
     /**
      * Process output-data
      * 
-     * @param callable $Callback
-     * @param mixed $Private (optional)
      * @param qcREST_Interface_Resource $Resource
      * @param qcREST_Interface_Representation $Representation
      * @param qcREST_Interface_Request $Request (optional)   
      * @param qcREST_Interface_Controller $Controller (optional)
      * 
-     * The callback will be raised in the form of
-     * 
-     *   function (qcREST_Interface_Processor $Self, string $Output, string $OutputType, qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request = null, qcREST_Controller $Controller = null) { }
-     * 
      * @access public
-     * @return bool  
+     * @return qcEvents_Promise
      **/
-    public function processOutput (callable $Callback, $Private = null, qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request = null, qcREST_Interface_Controller $Controller = null) {
-      call_user_func ($Callback, $this, null, null, $Resource, $Representation, $Request, $Controller, $Private);
-      
-      return false;
+    public function processOutput (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request = null, qcREST_Interface_Controller $Controller = null) : qcEvents_Promise {
+      return qcEvents_Promise::reject ('Unsupported');
     }
     // }}}
   }

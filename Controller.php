@@ -1592,27 +1592,29 @@
       }
       
       // Process the output
-      return $outputProcessor->processOutput (
-        function (qcREST_Interface_Processor $Processor, $Output, $OutputType, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private, $Status, $Meta) {
-          // Check if the processor returned an error
-          if ($Output === false) {
-            trigger_error ('Output-Processor failed');
-            
-            return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
-          }
+      return $outputProcessor->processOutput ($Resource, $Representation, $Request, $this)->then (
+        function (qcREST_Response $Response) use ($Resource, $Status, $Meta, $Callback, $Private) {
+          // Update status
+          $Response->setStatus ($Status);
           
-          // Create a response-object
+          // Update meta
           if (!isset ($Meta ['X-Resource-Type']))
             $Meta ['X-Resource-Type'] = 'Resource';
           
           $Meta ['X-Resource-Class'] = get_class ($Resource);
           
-          $Response = new qcREST_Response ($Request, $Status, $Output, $OutputType, $Meta);
+          foreach ($Meta as $Key=>$Value)
+            $Response->setMeta ($Key, $Value);
           
           // Return the response
           return $this->sendResponse ($Response, $Callback, $Private);
-        }, null,
-        $Resource, $Representation, $Request, $this
+        },
+        function () use ($Request, $Callback, $Status) {
+          if (defined ('QCREST_DEBUG'))
+            trigger_error ('Output-Processor failed');
+          
+          return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
+        }
       );
     }
     // }}}
