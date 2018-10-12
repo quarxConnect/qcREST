@@ -78,6 +78,16 @@
     public function addMeta ($Key, $Value);
     // }}}
     
+    // {{{ getPreferedOutputTypes
+    /**
+     * Retrive a list of prefered output-types
+     * 
+     * @access public
+     * @return array
+     **/
+    public function getPreferedOutputTypes () : array;
+    // }}}
+    
     // {{{ setPreferedOutputTypes
     /**
      * Set a list of prefered output-types

@@ -363,6 +363,16 @@
       if (!$this->Root)
         return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
       
+      // Find a suitable processor for the response
+      $outputProcessor = null;
+      
+      foreach ($Request->getAcceptedContentTypes () as $Mimetype)
+        if ($outputProcessor = $this->getProcessor ($Mimetype))
+          break;
+      
+      if (!is_object ($outputProcessor))
+        return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NO_FORMAT, $Headers, $Callback, $Private);
+      
       // Try to authenticate the request
       return $this->authenticateRequest ($Request)->then (
         // Authentication was successfull
@@ -375,10 +385,10 @@
         },
         
         // Authentication failed
-        function ($Representation = null) use ($Request, $Callback, $Private) {
+        function ($Representation = null) use ($Request, $outputProcessor, $Callback, $Private) {
           // Forward Representation of the error if there is one
           if ($Representation instanceof qcREST_Interface_Representation)
-            return $this->handleRepresentation ($Request, null, null, $Representation, null, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
+            return $this->handleRepresentation ($Request, null, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
           
           // Bail out an error
           if (defined ('QCREST_DEBUG'))
@@ -392,16 +402,16 @@
         }
       
       // Proceed to resolve URI
-      )->then (function () use ($Request, $Callback, $Private) {
+      )->then (function () use ($Request, $outputProcessor, $Callback, $Private) {
         // Try to resolve to a resource
         return $this->resolveURI (
           $Request->getURI (),
           $Request,
           function (qcREST_Interface_Controller $Self, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null, $Segment = null)
-          use ($Request, $Callback, $Private) {
+          use ($Request, $outputProcessor, $Callback, $Private) {
             return $this->authorizeRequest ($Request, $Resource, $Collection)->then (
               // Authorization was successfull
-              function () use ($Request, $Resource, $Collection, $Segment, $Callback, $Private) {
+              function () use ($Request, $Resource, $Collection, $Segment, $outputProcessor, $Callback, $Private) {
                 // Retrive default headers just for convienience
                 if ($Collection || $Resource)
                   $Headers = $this->getDefaultHeaders ($Request, ($Collection ? $Collection : $Resource));
@@ -419,16 +429,6 @@
                   }
                 } else
                   $inputProcessor = null;
-
-                // Find a suitable processor for the response
-                $outputProcessor = null;
-
-                foreach ($Request->getAcceptedContentTypes () as $Mimetype)
-                  if ($outputProcessor = $this->getProcessor ($Mimetype))
-                    break;
-
-                if (!is_object ($outputProcessor))
-                  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NO_FORMAT, $Headers, $Callback, $Private);
 
                 // Check if we should expect a request-body
                 if (in_array ($Request->getMethod (), array (qcREST_Interface_Request::METHOD_POST, qcREST_Interface_Request::METHOD_PUT, qcREST_Interface_Request::METHOD_PATCH))) {
@@ -1565,8 +1565,33 @@
       if ((count ($Representation) == 0) || ($Request->getMethod () == $Request::METHOD_HEAD))
         return $this->respondStatus ($Request, $Status, $Meta, $Callback, $Private);
       
+      // Make sure there is an output-processor
+      if (count ($outputPreferences = $Representation->getPreferedOutputTypes ()) > 0) {
+        $outputCandidates = array ();
+        
+        foreach ($outputPreferences as $outputPreference)
+          if ($outputCandidate = $this->getProcessor ($outputPreference))
+            $outputCandidates [] = $outputCandidate;
+        
+        foreach ($Request->getAcceptedContentTypes () as $Mimetype)
+          if (($outputCandidate = $this->getProcessor ($Mimetype)) &&
+              in_array ($outputCandidate, $outputCandidates, true)) {
+            $outputProcessor = $outputCandidate;
+            
+            break;
+          }
+      }
+      
+      if (!$outputProcessor) {
+        foreach ($Request->getAcceptedContentTypes () as $Mimetype)
+          if ($outputProcessor = $this->getProcessor ($Mimetype))
+            break;
+        
+        if (!is_object ($outputProcessor))
+          return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NO_FORMAT, $Headers, $Callback, $Private);
+      }
+      
       // Process the output
-      # TODO: FIX Make sure we have an output-processor
       return $outputProcessor->processOutput (
         function (qcREST_Interface_Processor $Processor, $Output, $OutputType, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request, qcREST_Interface_Controller $Controller) use ($Callback, $Private, $Status, $Meta) {
           // Check if the processor returned an error

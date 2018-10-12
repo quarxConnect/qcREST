@@ -25,7 +25,7 @@
     private $Set = array ();
     
     private $Meta = array ();
-    private $outputPreferences = null;
+    private $outputPreferences = array ();
     private $Status = null;
     private $allowRedirect = true;
     
@@ -148,6 +148,18 @@
      **/
     public function addMeta ($Key, $Value) {
       $this->Meta [$Key] = $Value;
+    }
+    // }}}
+    
+    // {{{ getPreferedOutputTypes
+    /**
+     * Retrive a list of prefered output-types
+     * 
+     * @access public
+     * @return array
+     **/
+    public function getPreferedOutputTypes () : array {
+      return $this->outputPreferences;
     }
     // }}}
     
