@@ -231,7 +231,7 @@
         $Promises [] = $Callback ($this, null, $this->Children);
       
       return qcEvents_Promise::all ($Promises)->then (function () {
-        return array ($this->Children);
+        return $this->Children;
       });
     }
     // }}}
