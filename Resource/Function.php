@@ -202,26 +202,13 @@
      * Trigger execution of stored function
      * 
      * @param array $Params Parameters for the call
-     * @param callable $Callback (optional) A callback to forward the result to
-     * @param mixed $Private (optional) Any private data to pass to the callback
      * @apram qcREST_Interface_Request $Request (optional) A request associated with this call
      * 
-     * The callback will be raised in the form of:
-     * 
-     *   function (qcREST_Resource_Function $Self, qcREST_Interface_Representation $Result = null, mixed $Private = null) { }
-     * 
      * @access public
-     * @return void
+     * @return qcEvents_Promise
      **/
-    public function triggerFunction (array $Params, callable $Callback = null, $Private = null, qcREST_Interface_Request $Request = null) {
-      return $this->invoke (new qcREST_Representation ($Params), $Request)->then (
-        function ($Result) use ($Callback, $Private) {
-          call_user_func ($Callback, $this, $Result, $Private);
-        },
-        function ($E) {
-          call_user_func ($Callback, $this, null, $Private);
-        }
-      );
+    public function triggerFunction (array $Params, qcREST_Interface_Request $Request = null) : qcEvents_Promise {
+      return $this->invoke (new qcREST_Representation ($Params), $Request);
     }
     // }}}
   }
