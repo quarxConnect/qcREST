@@ -165,11 +165,14 @@
     private function invoke (qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request = null) : qcEvents_Promise {
       // Create the promise
       if ($this->Async)
-        $Promise = new qcEvents_Promise (function ($resolve, $reject) {
-          call_user_func ($this->Callback, $Representation, $Request, function ($Result) use ($resolve, $reject) {
-            $resolve ($Result);
-          });
-        });
+        $Promise = new qcEvents_Promise (
+          function ($resolve, $reject)
+          use ($Representation, $Request) {
+            call_user_func ($this->Callback, $Representation, $Request, function ($Result) use ($resolve, $reject) {
+              $resolve ($Result);
+            });
+          }
+        );
       else
         $Promise = qcEvents_Promise::resolve (call_user_func ($this->Callback, $Representation, $Request));
       
