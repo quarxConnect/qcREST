@@ -250,7 +250,7 @@
       $Promises = array ();
       
       foreach ($this->Callbacks as $Callback)
-        $Promises [] = $Callback ($this, $Name, $this->Children);
+        $Promises [] = $Callback ($this, $Name, $this->Children, $Request);
       
       return qcEvents_Promise::all ($Promises)->then (function () use ($Name) {
         // Look for a matching child
