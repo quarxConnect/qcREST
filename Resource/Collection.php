@@ -153,7 +153,7 @@
      * 
      * The callback will be raised in the form of
      * 
-     *   function (qcREST_Resource_Collection $Self, string $Name = null, array $Children) { }
+     *   function (qcREST_Resource_Collection $Self, string $Name = null, array $Children, qcREST_Interface_Request $Request = null) { }
      * 
      * The variable contains the name of a children if a single one is requested, $Children will carry the actual child-set.
      * The callback is expected to return a qcEvents_Promise
@@ -228,7 +228,7 @@
       $Promises = array ();
       
       foreach ($this->Callbacks as $Callback)
-        $Promises [] = $Callback ($this, null, $this->Children);
+        $Promises [] = $Callback ($this, null, $this->Children, $Request);
       
       return qcEvents_Promise::all ($Promises)->then (function () {
         return $this->Children;
