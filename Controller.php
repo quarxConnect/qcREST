@@ -25,8 +25,8 @@
   require_once ('qcEvents/Promise.php');
   
   abstract class qcREST_Controller implements qcREST_Interface_Controller {
-    /* REST-Resource to use as Root */
-    private $Root = null;
+    /* REST-Element to use as root */
+    private $rootElement = null;
     
     /* Registered Authenticators */
     private $Authenticators = array ();
@@ -63,15 +63,13 @@
     /**
      * Set the root resource for this controller
      * 
-     * @param qcREST_Interface_Resource $Root
+     * @param qcREST_Interface_Entity $Root
      * 
      * @access public
-     * @return bool
+     * @return void
      **/
-    public function setRootElement (qcREST_Interface_Resource $Root) {
-      $this->Root = $Root;
-      
-      return true;
+    public function setRootElement (qcREST_Interface_Entity $Root) {
+      $this->rootElement = $Root;
     }
     // }}}
     
@@ -86,34 +84,41 @@
      * @return string
      **/
     public function getEntityURI (qcREST_Interface_Entity $Resource = null, $Absolute = false) {
-      if (!$Resource)
+      if (!$Entity)
         return '/';
       
       $Path = '';
       $Full = false;
       
       do {
-        if ($Resource instanceof qcREST_Interface_Resource) {
-          if ((strlen ($Path) > 0) && ($Path [0] != '/') && ($Resource instanceof qcREST_Interface_Collection)) {
-            $Path = '/' . $Path;
-          
-            if ($Full = (($Resource = $Resource->getResource ()) === $this->Root))
-              break;
-          } else {
-            $Path = $Resource->getName () . $Path;
-            $Resource = $Resource->getCollection ();
-          }
-        } elseif ($Resource instanceof qcREST_Interface_Collection) {
+        // Check if we reached the root-element
+        $Full = ($Entity === $this->rootElement);
+        $cEntity = $Entity;
+        
+        // Check for a resource (and hybrids)
+        if ($Entity instanceof qcREST_Interface_Resource) {
+          $Path = $Entity->getName () . ($Entity instanceof qcREST_Interface_Collection ? '/' : '') . $Path;
+          $Entity = $Entity->getCollection ();
+        
+        // Must be a collection
+        } else {
           $Path = '/' . $Path;
-          
-          if ($Full = (($Resource = $Resource->getResource ()) === $this->Root))
-            break;
+          $Entity = $Entity->getResource ();
         }
-      } while ($Resource);
+        
+        // Sanity-Check for lockups
+        if ($cEntity === $Entity) {
+          trigger_error ('Loop detected');
+          
+          break;
+        }
+      } while (!$Full && $Entity);
       
+      // Make sure we found the whole path
       if (!$Full)
         trigger_error ('Path may be incomplete: ' . $Path);
       
+      // Convert to absolute path
       if ($Absolute) {
         $baseURI = $this->getURI ();
         
@@ -360,7 +365,7 @@
       }
       
       // Make sure we have a root-element assigned
-      if (!$this->Root)
+      if (!$this->rootElement)
         return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, null, $Callback, $Private);
       
       // Find a suitable processor for the response
@@ -402,98 +407,112 @@
         }
       
       // Proceed to resolve URI
-      )->then (function () use ($Request, $outputProcessor, $Callback, $Private) {
-        // Try to resolve to a resource
-        return $this->resolveURI (
-          $Request->getURI (),
-          $Request,
-          function (qcREST_Interface_Controller $Self, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null, $Segment = null)
-          use ($Request, $outputProcessor, $Callback, $Private) {
-            return $this->authorizeRequest ($Request, $Resource, $Collection)->then (
-              // Authorization was successfull
-              function () use ($Request, $Resource, $Collection, $Segment, $outputProcessor, $Callback, $Private) {
-                // Retrive default headers just for convienience
-                if ($Collection || $Resource)
-                  $Headers = $this->getDefaultHeaders ($Request, ($Collection ? $Collection : $Resource));
-                else
-                  $Headers = array ();
-
-                // Check if there is a request-body
-                if (($cType = $Request->getContentType ()) !== null) {
-                  // Make sure we have a processor for this
-                  if (!is_object ($inputProcessor = $this->getProcessor ($cType))) {
-                    if (defined ('QCREST_DEBUG'))
-                      trigger_error ('No input-processor for content-type ' . $cType);
-
-                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_UNSUPPORTED, $Headers, $Callback, $Private);
-                  }
-                } else
-                  $inputProcessor = null;
-
-                // Check if we should expect a request-body
-                if (in_array ($Request->getMethod (), array (qcREST_Interface_Request::METHOD_POST, qcREST_Interface_Request::METHOD_PUT, qcREST_Interface_Request::METHOD_PATCH))) {
-                  // Make sure we have an input-processor
-                  if (!$inputProcessor) {
-                    if (defined ('QCREST_DEBUG'))
-                      trigger_error ('No input-processor for request found');
-
-                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_ERROR, $Headers, $Callback, $Private);
-                  }
-
-                  // Make sure the request-body is present
-                  elseif (($Input = $Request->getContent ()) === null)
-                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_MISSING, $Headers, $Callback, $Private);
-
-                  // Try to parse the request-body
-                  elseif (!($Representation = $inputProcessor->processInput ($Input, $cType, $Request)))
-                    return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_ERROR, $Headers, $Callback, $Private);
-
-                // ... or fail if there is content on the request
-                } elseif (strlen ($Request->getContent ()) > 0) {
-                  if (defined ('QCREST_DEBUG'))
-                    trigger_error ('Content on request where none is expected');
-
-                  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_ERROR, $Headers, $Callback, $Private);
-
-                // Just make sure $Representation is set
-                } else
-                  $Representation = null;
-
-                // Check if the resolver found a collection
-                if ($Collection !== null)
-                  return $this->handleCollectionRequest ($Resource, $Collection, $Request, $Representation, $outputProcessor, $Segment, $Callback, $Private);
-
-                // Check if the resource found a resource
-                if ($Resource !== null)
-                  return $this->handleResourceRequest ($Resource, $Request, $Representation, $outputProcessor, $Callback, $Private);
-
-                // Return if the resolver did not find anything
-                return $this->respondStatus (
-                  $Request,
-                  ($Request->getMethod () == $Request::METHOD_OPTIONS ? qcREST_Interface_Response::STATUS_OK : qcREST_Interface_Response::STATUS_NOT_FOUND),
-                  $Headers,
-                  $Callback,
-                  $Private
-                );
-              },
+      )->then (
+        function ()
+        use ($Request, $outputProcessor, $Callback, $Private) {
+          // Try to resolve to a resource
+          $Resource = $Collection = $Segment = null;
+          
+          return $this->resolveURI (
+            $Request->getURI (),
+            $Request
+          )->then (
+            // Try to authorize access to that resource
+            function (qcREST_Interface_Resource $nResource = null, qcREST_Interface_Collection $nCollection = null, $nSegment = null)
+            use ($Request, &$Resource, &$Collection, &$Segment) {
+              // Store the result on our context
+              $Resource = $nResource;
+              $Collection = $nCollection;
+              $Segment = $nSegment;
               
-              // Authorization failed
-              function ($Representation = null) use ($Request, $Resource, $Collection, $Callback, $Private) {
-                // Forward Representation of the error if there is one
-                if ($Representation instanceof qcREST_Interface_Representation)
-                  return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, null, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED, null, $Callback, $Private);
+              // Try to authorize
+              return $this->authorizeRequest ($Request, $Resource, $Collection);
+            },
+            function () use ($Request, $Callback, $Private) {
+              $this->respondStatus (
+                $Request,
+                ($Request->getMethod () == $Request::METHOD_OPTIONS ? qcREST_Interface_Response::STATUS_OK : qcREST_Interface_Response::STATUS_NOT_FOUND),
+                array (),
+                $Callback,
+                $Private
+              );
+            }
+          )->then (
+            // Authorization was successfull
+            function ()
+            use ($Request, $outputProcessor, $Callback, $Private, &$Resource, &$Collection, &$Segment) {
+              // Check if we are done already
+              if (!$Resource && !$Collection)
+                return;
+              
+              // Retrive default headers just for convienience
+              $Headers = $this->getDefaultHeaders ($Request, ($Collection ? $Collection : $Resource));
+              
+              // Check if there is a request-body
+              if (($cType = $Request->getContentType ()) !== null) {
+                // Make sure we have a processor for this
+                if (!is_object ($inputProcessor = $this->getProcessor ($cType))) {
+                  if (defined ('QCREST_DEBUG'))
+                    trigger_error ('No input-processor for content-type ' . $cType);
+                  
+                  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_UNSUPPORTED, $Headers, $Callback, $Private);
+                }
+              } else
+                $inputProcessor = null;
+              
+              // Check if we should expect a request-body
+              if (in_array ($Request->getMethod (), array (qcREST_Interface_Request::METHOD_POST, qcREST_Interface_Request::METHOD_PUT, qcREST_Interface_Request::METHOD_PATCH))) {
+                // Make sure we have an input-processor
+                if (!$inputProcessor) {
+                  if (defined ('QCREST_DEBUG'))
+                    trigger_error ('No input-processor for request found');
+                  
+                  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_ERROR, $Headers, $Callback, $Private);
                 
-                // Bail out an error
+                // Make sure the request-body is present
+                } elseif (($Input = $Request->getContent ()) === null)
+                  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_MISSING, $Headers, $Callback, $Private);
+                
+                // Try to parse the request-body
+                elseif (!($Representation = $inputProcessor->processInput ($Input, $cType, $Request)))
+                  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_ERROR, $Headers, $Callback, $Private);
+                
+              // ... or fail if there is content on the request
+              } elseif (strlen ($Request->getContent ()) > 0) {
                 if (defined ('QCREST_DEBUG'))
-                  trigger_error ('Authorization failed');
+                  trigger_error ('Content on request where none is expected');
                 
-                // Forward the result
-                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED, null, $Callback, $Private);
-              }
-            );
-          }
-        ); // resolveURI()
-      }); // authenticateRequest()
+                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_ERROR, $Headers, $Callback, $Private);
+                
+              // Just make sure $Representation is set
+              } else
+                $Representation = null;
+              
+              // Check if the resolver found a collection
+              if ($Collection !== null)
+                return $this->handleCollectionRequest ($Resource, $Collection, $Request, $Representation, $outputProcessor, $Segment, $Callback, $Private);
+              
+              // Check if the resource found a resource
+              return $this->handleResourceRequest ($Resource, $Request, $Representation, $outputProcessor, $Callback, $Private);
+            },
+            
+            // Authorization failed
+            function ($Representation = null)
+            use ($Request, &$Resource, &$Collection, $Callback, $Private) {
+              // Forward Representation of the error if there is one
+              if ($Representation instanceof qcREST_Interface_Representation)
+                return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, null, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED, null, $Callback, $Private);
+              
+              // Bail out an error
+              if (defined ('QCREST_DEBUG'))
+                trigger_error ('Authorization failed');
+              
+              // Forward the result
+              return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED, null, $Callback, $Private);
+            }
+          );
+        }
+      );
     }
     // }}}
     
@@ -503,32 +522,31 @@
      * 
      * @param string $URI The actual URI to resolve
      * @param qcREST_Interface_Request $Request (optional)
-     * @param callable $Callback A callback to raise once the URI was resolved
-     * @param mixed $Private (optional) Any private data to pass to the callback
-     * 
-     * The callback will be raised in the form of
-     * 
-     *   function (qcREST_Interface_Controller $Self, qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection = null, string $Segment = null, mixed $Private = null) { }
-     * 
-     * After a successfull resolve $Resource will be filled with a valid REST-Resource.
-     * If the URI points to a collection $Collection will be filled either.
-     * If the URI could NOT be resolved completly, but the last point from the
-     * successfull resolve allows to created subsequent elements, $Collection will be
-     * filled with the last collection.
      * 
      * @access private
-     * @return void
+     * @return qcEvents_Promise
      **/
-    private function resolveURI ($URI, qcREST_Interface_Request $Request = null, callable $Callback, $Private = null) {
+    private function resolveURI ($URI, qcREST_Interface_Request $Request = null) : qcEvents_Promise {
       // Make sure we have a root assigned
-      if ($this->Root === null)
-        return call_user_func ($Callback, $this, null, null, null, $Private);
+      if ($this->rootElement === null)
+        return qcEvents_Promise::reject ('No root-element assigned');
       
       // Check if this is a request for our root
-      if (strlen ($URI) == 0)
-        return call_user_func ($Callback, $this, $this->Root, null, null, $Private);
+      $lURI = strlen ($URI);
       
-      $iPath = explode ('/', substr ($URI, 1));
+      if (($lURI == 0) ||
+          (($lURI == 1) && ($URI [0] == '/') && ($this->rootElement instanceof qcREST_Interface_Collection)))
+        return qcEvents_Promise::resolve (
+          ($this->rootElement instanceof qcREST_Interface_Resource ? $this->rootElement : null),
+          ($this->rootElement instanceof qcREST_Interface_Collection ? $this->rootElement : null),
+          null
+        );
+      
+      // Translate the path
+      if ($URI [0] == '/')
+        $URI = substr ($URI, 1);
+      
+      $iPath = explode ('/', $URI);
       $lPath = count ($iPath);
       $Path = array ();
       
@@ -536,62 +554,54 @@
         if (($i == 0) || ($i == $lPath - 1) || (strlen ($iPath [$i]) > 0))
           $Path [] = rawurldecode ($iPath [$i]);
       
-      $rFunc = null;
-      $rFunc = function ($Self, $Result, $Data = null) use ($Callback, $Private, $Request, &$Path, &$rFunc) {
-        // We got a child-collection
-        if (($Self instanceof qcREST_Interface_Resource) && ($Result instanceof qcREST_Interface_Collection) && ($Data === null)) {
-          // Check wheter to lookup a further child
-          if ((count ($Path) == 1) && (strlen ($Path [0]) == 0))
-            return call_user_func ($Callback, $this, $Self, $Result, null, $Private);
+      // Try to get root-collection
+      if ($this->rootElement instanceof qcREST_Interface_Resource) {
+        $Promise = $this->rootElement->getChildCollection ();
+        $Resource = $this->rootElement;
+      } else {
+        $Promise = qcEvents_Promise::resolve ($this->rootElement);
+        $Resource = null;
+      }
+      
+      $collectionFunction =
+        function (qcREST_Interface_Collection $Collection)
+        use ($Request, &$Path, &$Resource, &$collectionFunction) {
+          // Check if there is nothing to look up
+          if (count ($Path) == 0)
+            return new qcEvents_Promise_Solution (array ($Resource, $Collection));
           
-          // Try to lookup the next child
           $Next = array_shift ($Path);
           
-          return qcEvents_Promise::ensure ($Result->getChild ($Next, $Request))->then (
-            function ($Child) use ($rFunc, $Result, $Self, $Next) {
-              $rFunc ($Result, $Child, array ($Self, $Next));
+          if ((count ($Path) == 0) && (strlen ($Next) == 0))
+            return new qcEvents_Promise_Solution (array ($Resource, $Collection));
+          
+          // Try to lookup the next resource
+          return $Collection->getChild ($Next, $Request)->then (
+            function (qcREST_Interface_Resource $nResource)
+            use (&$Resource, &$Path, &$collectionFunction) {
+              // Check if we are done
+              if (count ($Path) == 0)
+                return $nResource;
+              
+              // Change current resource
+              $Resource = $nResource;
+              
+              // Try to access child-collection of that resource
+              return $Resource->getChildCollection ()->then ($collectionFunction);
             },
-            function () use ($rFunc, $Result, $Self, $Next) {
-              $rFunc ($Result, null, array ($Self, $Next));
+            function ()
+            use ($Request, &$Resource, $Collection, &$Path, $Next) {
+              // Just push this error forward
+              if ((count ($Path) != 0) || ($Request->getMethod () != $Request::METHOD_PUT))
+                throw new qcEvents_Promise_Solution (func_get_args ());
+              
+              // Resolve to collection with segment
+              return new qcEvents_Promise_Solution (array ($Resource, $Collection, $Next));
             }
           );
-          
-        // A child of a collection was returned
-        } elseif ($Result instanceof qcREST_Interface_Resource) {
-          // Check if we reached the end
-          if (count ($Path) == 0)
-            return call_user_func ($Callback, $this, $Result, null, null, $Private);
-          
-          // Try to retrive the child-collection of this resource
-          return qcEvents_Promise::ensure ($Result->getChildCollection ())->then (
-            function (qcREST_Interface_Collection $Collection) use ($Result, $rFunc) { $rFunc ($Result, $Collection); },
-            function () use ($Result, $rFunc) { $rFunc ($Result, null); }
-          );
-          
-        // A child could not be returned
-        } elseif ($Self instanceof qcREST_Interface_Collection) {
-          // Check wheter we should create a new child by that name
-          # TODO: Create intermediate children if count($Path)>0   
-          if ((count ($Path) != 0) || !($Request->getMethod () == $Request::METHOD_PUT))
-            return call_user_func ($Callback, $this, null, null, null, $Private);
-          
-          return call_user_func ($Callback, $this, $Data [0], $Self, $Data [1], $Private);
-        
-        // A collection was not available
-        } else {
-          # TODO?
-          #if ((count ($Path) > 0) && ($Request->getMethod () == $Request::METHOD_PUT))
-          #  return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, null, $Callback, $Private);
-          
-          # return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_FOUND, null, $Callback, $Private);
-          return call_user_func ($Callback, $this, null, null, null, $Private);
-        }
-      }; 
+        };
       
-      return qcEvents_Promise::ensure ($this->Root->getChildCollection ())->then (
-        function (qcREST_Interface_Collection $Collection) use ($rFunc) { $rFunc ($this->Root, $Collection); },
-        function () use ($rFunc) { $rFunc ($this->Root, null); }
-      );
+      return $Promise->then ($collectionFunction);
     }
     // }}}
     
@@ -916,7 +926,7 @@
     /**
      * Process a request targeted at a directory-resource
      * 
-     * @param qcREST_Interface_Resource $Resource
+     * @param qcREST_Interface_Resource $Resource (optional)
      * @param qcREST_Interface_Collection $Collection
      * @param qcREST_Interface_Request $Request
      * @param qcREST_Interface_Representation $Representation (optional)
@@ -928,7 +938,7 @@
      * @access private
      * @return bool
      **/
-    private function handleCollectionRequest (qcREST_Interface_Resource $Resource, qcREST_Interface_Collection $Collection, qcREST_Interface_Request $Request, qcREST_Interface_Representation $Representation = null, qcREST_Interface_Processor $outputProcessor, $Segment = null, callable $Callback, $Private = null) {
+    private function handleCollectionRequest (qcREST_Interface_Resource $Resource = null, qcREST_Interface_Collection $Collection, qcREST_Interface_Request $Request, qcREST_Interface_Representation $Representation = null, qcREST_Interface_Processor $outputProcessor, $Segment = null, callable $Callback, $Private = null) {
       // Retrive default headers
       $Headers = $this->getDefaultHeaders ($Request, $Collection);
       
@@ -1020,7 +1030,7 @@
           }
           
           // Request the children of this resource
-          return qcEvents_Promise::ensure ($Collection->getChildren ($Request))->then (
+          return $Collection->getChildren ($Request)->then (
             function (array $Children, qcREST_Interface_Representation $Representation = null)
             use ($Collection, $Request, $Resource, $outputProcessor, $Headers, $First, $Last, $Sort, $Search, $User, $Order, $Callback, $Private) {
               // Prepare representation
@@ -1084,7 +1094,7 @@
                 $Item->_permissions->delete = $Child->isRemovable ($User);
                 
                 // Ask authorizers for permissions
-                $Promises [] = $Request->getController ()->getAuthorizedMethods ($Resource, null, $Request)->then (
+                $Promises [] = $Request->getController ()->getAuthorizedMethods ($Child, null, $Request)->then (
                   function (array $Grants) use ($Item, $Request) {
                     // Patch resource rights
                     $Item->_permissions->read   = $Item->_permissions->read && in_array ($Request::METHOD_GET, $Grants);
@@ -1098,16 +1108,16 @@
                 
                 // Check permissions of containing collection 
                 if ($Child->hasChildCollection ())
-                  $Promises [] = qcEvents_Promise::ensure ($Resource->getChildCollection ())->then (
+                  $Promises [] = $Child->getChildCollection ()->then (
                     function (qcREST_Interface_Collection $Collection)
-                    use ($Resource, $Item, $Request, $User) {
+                    use ($Child, $Item, $Request, $User) {
                       // Patch in default rights
                       $Item->_permissions->collection = new stdClass;
                       $Item->_permissions->collection->browse = $Collection->isBrowsable ($User);
                       $Item->_permissions->collection->write = $Collection->isWritable ($User);
                       $Item->_permissions->collection->delete = $Collection->isRemovable ($User);
                       
-                      return $Request->getController ()->getAuthorizedMethods ($Resource, $Collection, $Request)->then (
+                      return $Request->getController ()->getAuthorizedMethods ($Child, $Collection, $Request)->then (
                         function ($Grants) use ($Item, $Request) {
                           // Patch collection rights
                           $Item->_permissions->collection->browse = $Item->_permissions->collection->browse && in_array ($Request::METHOD_GET, $Grants);
@@ -1136,7 +1146,7 @@
                 else
                   $Promise = $Child->getRepresentation ($Request);
                 
-                $Promises [] = qcEvents_Promise::ensure ($Promise)->then (
+                $Promises [] = $Promise->then (
                   function (qcREST_Interface_Representation $Representation) use ($Item) {
                     // Patch item on representation
                     foreach ($Representation as $Key=>$Value)
@@ -1227,7 +1237,8 @@
                 }
               );
             },
-            function ($Representation = null) use ($Collection, $Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
+            function ($Representation = null)
+            use ($Collection, $Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
               // Make sure that collection-parameters are reset
               if ($Collection instanceof qcREST_Interface_Collection_Extended)
                 $Collection->resetParameters ();
@@ -1262,9 +1273,10 @@
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, $Headers, $Callback, $Private);
           }
           
-          return qcEvents_Promise::ensure ($Collection->createChild ($Representation, $Segment, $Request))->then (
+          return $Collection->createChild ($Representation, $Segment, $Request)->then (
+            // Child was created
             function (qcREST_Interface_Resource $Child, qcREST_Interface_Representation $Representation = null)
-            use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
+            use ($Request, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
               // Create URI for newly created child
               $Headers ['Location'] = $URI = $this->getURI ($Child);
               
@@ -1276,17 +1288,20 @@
               if (!$this->alwaysRepresentation || ($Child->isReadable ($Request->getUser ()) !== true))
                 return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_STORED, $Headers, $Callback, $Private);
               
-              return qcEvents_Promise::ensure ($Child->getRepresentation ($Request))->then (
+              return $Child->getRepresentation ($Request)->then (
                 function (qcREST_Interface_Representation $Representation)
-                use ($Request, $Resource, $Headers, $outputProcessor, $Callback, $Private) {
-                  return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_CREATED, $Headers, $Callback, $Private);
+                use ($Request, $Child, $Headers, $outputProcessor, $Callback, $Private) {
+                  return $this->handleRepresentation ($Request, $Child, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_CREATED, $Headers, $Callback, $Private);
                 },
                 function () use ($Request, $Headers, $Callback, $Private) {
                   return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CREATED, $Headers, $Callback, $Private);
                 }
               );
             },
-            function ($Representation = null) use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
+            
+            // Failed to create child
+            function ($Representation = null)
+            use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
               // Forward Representation of the error if there is one
               if ($Representation instanceof qcREST_Interface_Representation)
                 return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
@@ -1330,134 +1345,81 @@
           }
           
           // Request the children of this resource
-          return qcEvents_Promise::ensure ($Collection->getChildren ($Request))->then (
+          return $Collection->getChildren ($Request)->then (
             function (array $Children)
-            use ($Removals, $Request, $Resource, $Collection, $Representation, $Headers, $outputProcessor, $Callback, $Private) {
-              // Split children up into updates and removals
-              $Create = $Representation;
-              $Updates = array ();
+            use ($Removals, $Request, $Collection, $Representation, $Headers, $outputProcessor, $Callback, $Private) {
+              // Process existing children
+              $Promises = array ();
+              $lastError = null;
               
               foreach ($Children as $Child)
                 // Check if the child is referenced on input-attributes
                 if (isset ($Representation [$Name = $Child->getName ()])) {
-                  // Mark the child as updated
-                  $Updates [$Name] = $Child;
-                  
-                // Enqueue it for removal (chilren will only be removed if the request is of method PUT)
-                } elseif ($Removals !== null)
-                  $Removals [] = $Child;
-              
-              $func = null;
-              $func = function ($Self = null, $P1 = null, $P2 = null) use ($Request, $outputProcessor, $Resource, &$Create, &$Updates, &$Removals, $Representation, $Headers, &$func, $Callback, $Private) {
-                // Check if we are returning
-                if ($Self) {
-                  // Check if we tried to create a child
-                  if ($Self === $this) {
-                    $Child = $P1;
-                    $cRepresentation = $P2;
-                    
-                    if (!$Child)
-                      return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
-                  
-                  // Check if we tried to update a child-resource
-                  } elseif (is_array ($P1)) {
-                    $setAttributes = &$P1;
-                    $Status = &$P2;
-                    
-                    if (!$Status)
-                      return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
-                    
-                  // Treat anything else as removal
-                  } else {
-                    $Status = &$P1;
-                    
-                    if (!$Status)
-                      return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
-                  }
-                }
-                
-                // Try to update pending children
-                foreach ($Updates as $Name=>$Child) {
-                  // Create a child-representation for the update
+                  // Derive representation
                   $childRepresentation = new qcREST_Representation (is_object ($Representation [$Name]) ? get_object_vars ($Representation [$Name]) : $Representation [$Name]);
                   
                   // Remove from queue
-                  unset ($Updates [$Name], $Create [$Name]);
+                  unset ($Representation [$Name]);
                   
                   // Check if we are PATCHing and should *really* PATCH
                   if (($Removals === null) && (!defined ('QCREST_PATCH_ON_COLLECTION_PATCHES_RESOURCES') || QCREST_PATCH_ON_COLLECTION_PATCHES_RESOURCES))
-                    return qcEvents_Promise::ensure ($Child->getRepresentation ($Request))->then (
+                    $Promises [] = $Child->getRepresentation ($Request)->then (
                       function (qcREST_Interface_Representation $currentRepresentation)
-                      use ($Child, $func, $childRepresentation, $Request) {
-                        // Update Representation   
+                      use ($Child, $childRepresentation, $Request) {
+                        // Update Representation
                         $requireAttributes = false;
                         
                         foreach ($childRepresentation as $Key=>$Value)
-                          if (!$requireAttributes || isset ($currentRepresentation [$Key])) {
+                          if (!$requireAttributes || isset ($currentRepresentation [$Key]))
                             $currentRepresentation [$Key] = $Value;
-                            unset ($childRepresentation [$Key]);
-                          } else
-                            return call_user_func ($func, $Child, $currentRepresentation, false);
+                          else
+                            throw new exception ('Missing attribute ' . $Key);
                         
                         // Forward the update
-                        return qcEvents_Promise::ensure ($Child->setRepresentation ($currentRepresentation, $Request))->then (
-                          function (qcREST_Interface_Representation $childRepresentation)
-                          use ($func, $Child) {
-                            return call_user_func ($func, $Child, $childRepresentation, true);
-                          },
-                          function () use ($func, $Child, $childRepresentation) {
-                            return call_user_func ($func, $Child, $childRepresentation, false);
-                          }
-                        );
-                      },
-                      function () use ($func, $Child, $childRepresentation) {
-                        return call_user_func ($func, $Child, $childRepresentation, false);
+                        return $Child->setRepresentation ($currentRepresentation, $Request);
+                      }
+                    )->catch (
+                      function () use (&$lastError) {
+                        $lastError = qcREST_Interface_Response::STATUS_FORMAT_REJECTED;
                       }
                     );
-                  
-                  // Treat the update as a complete Representation
-                  return qcEvents_Promise::ensure ($Child->setRepresentation ($childRepresentation, $Request))->then (
-                    function (qcREST_Interface_Representation $childRepresentation)
-                    use ($func, $Child) {
-                      return call_user_func ($func, $Child, $childRepresentation, true);
-                    },
-                    function () use ($func, $Child, $childRepresentation) {
-                      return call_user_func ($func, $Child, $childRepresentation, false);
+                  else
+                    $Promises [] = $Child->setRepresentation ($childRepresentation, $Request)->catch (
+                      function () use (&$lastError) {
+                        $lastError = qcREST_Interface_Response::STATUS_FORMAT_REJECTED;
+                      }
+                    );
+                
+                // Enqueue it for removal (chilren will only be removed if the request is of method PUT)
+                } elseif ($Removals !== null)
+                  $Promises [] = $Child->remove ()->catch (
+                    function () use (&$lastError) {
+                      $lastError = qcREST_Interface_Response::STATUS_ERROR;
                     }
                   );
-                }
-                
-                // Try to create pending children
-                foreach ($Create as $Name=>$childAttributes) {
-                  unset ($Create [$Name]);
-                  
-                  return qcEvents_Promise::ensure ($Resource->createChild (new qcREST_Representation ($childAttributes), $Name, $Request))->then (
-                    function (qcREST_Interface_Resource $Child, qcREST_Interface_Representation $Representation = null)
-                    use ($Resource, $func) {
-                      $func ($Resource, $Child, $Representation);
-                    },
-                    function () use ($Resource, $func) { $func ($Resource, null, null); }
-                  );
-                }
-                
-                // Try to remove removals
-                if ($Removals !== null)
-                  foreach ($Removals as $Name=>$Child) {
-                    unset ($Removals [$Name]);
-                    
-                    return qcEvents_Promise::ensure ($Child->remove ())->then (
-                      function () use ($Child, $func) { $func ($Child, true); },
-                      function () use ($Child, $func) { $func ($Child, false); }
-                    );
-                  }
-                
-                // If we get here, we were finished
-                # TODO: Honor alwaysRepresentation here?!
-                return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_STORED, $Headers, $Callback, $Private);
-              };
               
-              // Dispatch to update-function
-              return call_user_func ($func);
+              // Create pending children
+              foreach ($Representation as $Name=>$childAttributes)
+                $Promises [] = $Collection->createChild (
+                  new qcREST_Representation (is_object ($childAttributes) ? get_object_vars ($childAttributes) : $childAttributes),
+                  $Name,
+                  $Request
+                )->catch (
+                  function () use (&$lastError) {
+                    $lastError = qcREST_Interface_Response::STATUS_FORMAT_REJECTED;
+                  }
+                );
+              
+              // Wait for all tasks to finish
+              return qcEvents_Promise::all ($Promises)->finally (
+                function ()
+                use ($Request, $Headers, $Callback, $Private, &$lastError) {
+                  if ($lastError === null)
+                    $lastError = qcREST_Interface_Response::STATUS_STORED;
+                  
+                  return $this->respondStatus ($Request, $lastError, $Headers, $Callback, $Private);
+                }
+              );
             },
             function ($Representation = null)
             use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
@@ -1487,11 +1449,13 @@
             return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NOT_ALLOWED, $Headers, $Callback, $Private);
           }
           
-          return qcEvents_Promise::ensure ($Collection->remove ())->then (
-            function () use ($Request, $Headers, $Callback, $Private) {
+          return $Collection->remove ()->then (
+            function ()
+            use ($Request, $Headers, $Callback, $Private) {
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_OK, $Headers, $Callback, $Private);
             },
-            function ($Representation = null) use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
+            function ($Representation = null)
+            use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
               // Forward Representation of the error if there is one
               if ($Representation instanceof qcREST_Interface_Representation)
                 return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);

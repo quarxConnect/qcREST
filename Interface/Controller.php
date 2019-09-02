@@ -35,12 +35,12 @@
     /**
      * Set the root resource for this controller
      * 
-     * @param qcREST_Interface_Resource $Root
+     * @param qcREST_Interface_Entity $Root
      * 
      * @access public
-     * @return bool
+     * @return void
      **/
-    public function setRootElement (qcREST_Interface_Resource $Root);
+    public function setRootElement (qcREST_Interface_Entity $Root);
     // }}}
     
     // {{{ addProcessor
