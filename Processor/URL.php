@@ -121,7 +121,7 @@
     /**
      * Process output-data
      * 
-     * @param qcREST_Interface_Resource $Resource
+     * @param qcREST_Interface_Resource $Resource (optional)
      * @param qcREST_Interface_Representation $Representation
      * @param qcREST_Interface_Request $Request (optional)   
      * @param qcREST_Interface_Controller $Controller (optional)
@@ -129,7 +129,7 @@
      * @access public
      * @return qcEvents_Promise
      **/
-    public function processOutput (qcREST_Interface_Resource $Resource, qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request = null, qcREST_Interface_Controller $Controller = null) : qcEvents_Promise {
+    public function processOutput (qcREST_Interface_Resource $Resource = null, qcREST_Interface_Representation $Representation, qcREST_Interface_Request $Request = null, qcREST_Interface_Controller $Controller = null) : qcEvents_Promise {
       return qcEvents_Promise::reject ('Unsupported');
     }
     // }}}
