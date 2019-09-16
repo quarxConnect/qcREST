@@ -77,13 +77,13 @@
     /**
      * Retrive the URI for a given entity
      * 
-     * @param qcREST_Interface_Entity $Resource (optional)
+     * @param qcREST_Interface_Entity $Entity (optional)
      * @param bool $Absolute (optional)
      * 
      * @access public
      * @return string
      **/
-    public function getEntityURI (qcREST_Interface_Entity $Resource = null, $Absolute = false) {
+    public function getEntityURI (qcREST_Interface_Entity $Entity = null, $Absolute = false) {
       if (!$Entity)
         return '/';
       
@@ -1565,7 +1565,8 @@
           if (!isset ($Meta ['X-Resource-Type']))
             $Meta ['X-Resource-Type'] = 'Resource';
           
-          $Meta ['X-Resource-Class'] = get_class ($Resource);
+          if ($Resource)
+            $Meta ['X-Resource-Class'] = get_class ($Resource);
           
           foreach ($Meta as $Key=>$Value)
             $Response->setMeta ($Key, $Value);
