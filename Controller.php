@@ -827,22 +827,23 @@
           }
           
           // Retrive the attributes first
-          return qcEvents_Promise::ensure ($Resource->getRepresentation ($Request))->then (
+          return $Resource->getRepresentation ($Request)->then (
             function (qcREST_Interface_Representation $currentRepresentation)
             use ($Resource, $Request, $Representation, $Headers, $outputProcessor, $Callback, $Private) {
-              // Update Representation
+              // Merge attributes of both representations
+              $Attributes = $currentRepresentation->toArray ();
               $requireAttributes = false;
               
               foreach ($Representation as $Key=>$Value)
-                if (!$requireAttributes || isset ($currentRepresentation [$Key])) {
-                  $currentRepresentation [$Key] = $Value;
-                  
-                  unset ($Representation [$Key]);
-                } else
+                if (!$requireAttributes || isset ($Attributes [$Key]))
+                  $Attributes [$Key] = $Value;
+                else
                   return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_FORMAT_ERROR, $Headers, $Callback, $Private);
               
+              $Representation = new qcREST_Representation ($Attributes);
+              
               // Try to update the resource's attributes
-              return qcEvents_Promise::ensure ($Resource->setRepresentation ($currentRepresentation, $Request))->then (
+              return $Resource->setRepresentation ($Representation, $Request)->then (
                 function (qcREST_Interface_Representation $Representation)
                 use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
                   # TODO: Return representation here?
