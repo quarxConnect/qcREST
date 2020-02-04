@@ -376,7 +376,7 @@
           break;
       
       if (!is_object ($outputProcessor))
-        return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NO_FORMAT, $Headers, $Callback, $Private);
+        return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_NO_FORMAT, null, $Callback, $Private);
       
       // Try to authenticate the request
       return $this->authenticateRequest ($Request)->then (
