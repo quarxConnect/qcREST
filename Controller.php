@@ -390,9 +390,10 @@
         },
         
         // Authentication failed
-        function ($Representation = null) use ($Request, $outputProcessor, $Callback, $Private) {
+        function (Throwable $errorMessage, qcREST_Interface_Representation $Representation = null)
+        use ($Request, $outputProcessor, $Callback, $Private) {
           // Forward Representation of the error if there is one
-          if ($Representation instanceof qcREST_Interface_Representation)
+          if ($Representation)
             return $this->handleRepresentation ($Request, null, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
           
           // Bail out an error
@@ -403,7 +404,7 @@
           $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHENTICATED, null, $Callback, $Private);
           
           // Make sure the promise is rejected
-          throw new exception ('Authentication failed');
+          throw $Error;
         }
       
       // Proceed to resolve URI
@@ -497,10 +498,10 @@
             },
             
             // Authorization failed
-            function ($Representation = null)
+            function (Throwable $errorMessage, qcREST_Interface_Representation $Representation = null)
             use ($Request, &$Resource, &$Collection, $Callback, $Private) {
               // Forward Representation of the error if there is one
-              if ($Representation instanceof qcREST_Interface_Representation)
+              if ($Representation)
                 return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, null, qcREST_Interface_Response::STATUS_CLIENT_UNAUTHORIZED, null, $Callback, $Private);
               
               // Bail out an error
@@ -625,15 +626,17 @@
       foreach ($Authenticators as $Authenticator)
         $Promises [] = $Authenticator->authenticateRequest ($Request);
       
-      return qcEvents_Promise::all ($Promises)->then (function ($Results) {
-        // Check if any user was found
-        foreach ($Results as $User)
-          if ($User instanceof qcEntity_Card)
-            return $User;
-        
-        // ... or be a bit laisser faire
-        return null;
-      });
+      return qcEvents_Promise::all ($Promises)->then (
+        function ($Results) {
+          // Check if any user was found
+          foreach ($Results as $User)
+            if ($User instanceof qcEntity_Card)
+              return $User;
+          
+          // ... or be a bit laisser faire
+          return null;
+        }
+      );
     }
     // }}}
     
@@ -660,7 +663,11 @@
       foreach ($Authorizers as $Authorizer)
         $Promises [] = $Authorizer->authorizeRequest ($Request, $Resource, $Collection);
       
-      return qcEvents_Promise::all ($Promises)->then (function () { return true; });
+      return qcEvents_Promise::all ($Promises)->then (
+        function () {
+          return true;
+        }
+      );
     }
     // }}}
     
@@ -687,20 +694,22 @@
       foreach ($Authorizers as $Authorizer)
         $Promises [] = $Authorizer->getAuthorizedMethods ($Resource, $Collection, $Request);
       
-      return qcEvents_Promise::all ($Promises)->then (function ($Results) {
-        // Merge grants
-        $Grants = null;
-        
-        foreach ($Results as $Result)
-          if ($Grants !== null) {
-            foreach ($Grants as $k=>$Grant)
-              if (!in_array ($Grant, $Result))
-                unset ($Grants [$k]);
-          } else
-            $Grants = $Result;
-        
-        return $Grants;
-      });
+      return qcEvents_Promise::all ($Promises)->then (
+        function ($Results) {
+          // Merge grants
+          $Grants = null;
+          
+          foreach ($Results as $Result)
+            if ($Grants !== null) {
+              foreach ($Grants as $k=>$Grant)
+                if (!in_array ($Grant, $Result))
+                  unset ($Grants [$k]);
+            } else
+              $Grants = $Result;
+          
+          return $Grants;
+        }
+      );
     }
     // }}}
     
@@ -748,11 +757,12 @@
             use ($Resource, $Request, $Headers, $outputProcessor, $Callback, $Private) {
               return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, $Headers, $Callback, $Private);
             },
-            function ($Representation = null) use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
+            function (Throwable $errorMessage, qcREST_Interface_Representation $Representation = null)
+            use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
               // Forward Representation of the error if there is one
-              if ($Representation instanceof qcREST_Interface_Representation)
+              if ($Representation)
                 return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
-
+              
               // Forward the error
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
             }
@@ -765,11 +775,12 @@
             function (qcREST_Interface_Collection $Collection) use ($Resource, $Request, $Representation, $outputProcessor, $Callback, $Private) {
               return $this->handleCollectionRequest ($Resource, $Collection, $Request, $Representation, $outputProcessor, null, $Callback, $Private);
             },
-            function ($Representation = null) use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
+            function (Throwable $errorMessage, qcREST_Interface_Representation $Representation = null)
+            use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
               // Forward Representation of the error if there is one
-              if ($Representation instanceof qcREST_Interface_Representation)
+              if ($Representation)
                 return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_NOT_ALLOWED, $Headers, $Callback, $Private);
-
+              
               // Bail out an error
               if (defined ('QCREST_DEBUG'))
                 trigger_error ('No child-collection');
@@ -805,9 +816,10 @@
               // Forward the representation
               return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, $Headers, $Callback, $Private);
             },
-            function ($Representation = null) use ($Resource, $Request, $outputProcessor, $Headers, $Callback, $Private) {
+            function (Throwable $errorMessage, qcREST_Interface_Representation $Representation = null)
+            use ($Resource, $Request, $outputProcessor, $Headers, $Callback, $Private) {
               // Use representation if there is a negative status on it
-              if ($Representation instanceof qcREST_Interface_Representation)
+              if ($Representation)
                 return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
               
               // Push back an error
@@ -855,9 +867,10 @@
                   // Forward the representation
                   return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_OK, $Headers, $Callback, $Private);
                 },
-                function ($Representation = null) use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
+                function (Throwable $errorMessage, qcREST_Interface_Representation $Representation = null)
+                use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
                   // Use representation if there is a negative status on it
-                  if ($Representation instanceof qcREST_Interface_Representation)
+                  if ($Representation)
                     return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
                   
                   // Give a normal bad reply if representation does not work
@@ -865,9 +878,10 @@
                 }
               );
             },
-            function ($Represenation = null) use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
+            function (Throwable $errorMessage, qcREST_Interface_Representation $Represenation = null)
+            use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
               // Forward Representation of the error if there is one
-              if ($Representation instanceof qcREST_Interface_Representation)
+              if ($Representation)
                 return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
               
               // Forward the error
@@ -893,9 +907,10 @@
             function () use ($Request, $Headers, $Callback, $Private) {
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_REMOVED, $Headers, $Callback, $Private);
             },
-            function ($Representation = null) use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
+            function (Throwable $errorMessage, qcREST_Interface_Representation $Representation = null)
+            use ($Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
               // Forward Representation of the error if there is one
-              if ($Representation instanceof qcREST_Interface_Representation)
+              if ($Representation)
                 return $this->handleRepresentation ($Request, $Resource, null, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
 
               // Forward the error
@@ -1237,14 +1252,14 @@
                 }
               );
             },
-            function ($Representation = null)
+            function (Throwable $errorMessage, qcREST_Interface_Representation $Representation = null)
             use ($Collection, $Request, $Resource, $outputProcessor, $Headers, $Callback, $Private) {
               // Make sure that collection-parameters are reset
               if ($Collection instanceof qcREST_Interface_Collection_Extended)
                 $Collection->resetParameters ();
               
               // Forward Representation of the error if there is one
-              if ($Representation instanceof qcREST_Interface_Representation)
+              if ($Representation)
                 return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
               
               // Bail out an error
@@ -1300,10 +1315,10 @@
             },
             
             // Failed to create child
-            function ($Representation = null)
+            function (Throwable $errorMessage, qcREST_Interface_Representation $Representation = null)
             use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
               // Forward Representation of the error if there is one
-              if ($Representation instanceof qcREST_Interface_Representation)
+              if ($Representation)
                 return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_FORMAT_REJECTED, $Headers, $Callback, $Private);
               
               // Bail out an error in debug-mode
@@ -1421,10 +1436,10 @@
                 }
               );
             },
-            function ($Representation = null)
+            function (Throwable $errorMessage, qcREST_Interface_Representation $Representation = null)
             use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
               // Forward Representation of the error if there is one
-              if ($Representation instanceof qcREST_Interface_Representation)
+              if ($Representation)
                 return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
               
               // Bail out an error in debug-mode
@@ -1454,10 +1469,10 @@
             use ($Request, $Headers, $Callback, $Private) {
               return $this->respondStatus ($Request, qcREST_Interface_Response::STATUS_OK, $Headers, $Callback, $Private);
             },
-            function ($Representation = null)
+            function (Throwable $errorMessage, qcREST_Interface_Representation $Representation = null)
             use ($Request, $Resource, $Collection, $outputProcessor, $Headers, $Callback, $Private) {
               // Forward Representation of the error if there is one
-              if ($Representation instanceof qcREST_Interface_Representation)
+              if ($Representation)
                 return $this->handleRepresentation ($Request, $Resource, $Collection, $Representation, $outputProcessor, qcREST_Interface_Response::STATUS_ERROR, $Headers, $Callback, $Private);
 
               // Forward the error
