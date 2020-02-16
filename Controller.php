@@ -97,7 +97,9 @@
         
         // Check for a resource (and hybrids)
         if ($Entity instanceof qcREST_Interface_Resource) {
-          $Path = $Entity->getName () . ($Entity instanceof qcREST_Interface_Collection ? '/' : '') . $Path;
+          if (!$Full)
+            $Path = $Entity->getName () . ($Entity instanceof qcREST_Interface_Collection ? '/' : '') . $Path;
+          
           $Entity = $Entity->getCollection ();
         
         // Must be a collection
