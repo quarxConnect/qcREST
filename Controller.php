@@ -1087,7 +1087,7 @@
               
               // Append children to the listing
               $Representation ['idAttribute'] = $Collection->getNameAttribute ();
-              $Items = array ();
+              $Representation ['items'] = $Items = array ();
               $Pos = 0;
               $Last = ($Last === null ? count ($Children) : $Last);
               
