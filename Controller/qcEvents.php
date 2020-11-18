@@ -105,7 +105,7 @@
      * @access public
      * @return qcREST_Interface_Request
      **/
-    public function getRequest () {
+    public function getRequest () : ?qcREST_Interface_Request {
       return null;
     }
     // }}}
@@ -234,19 +234,12 @@
      * Write out a response for a previous request
      * 
      * @param qcREST_Interface_Response $Response The response
-     * @param callable $Callback (optional) A callback to raise once the operation was completed
-     * @param mixed $Private (optional) Any private data to pass to the callback
-     * 
-     * The callback will be raised once the operation was finished in the form of
-     * 
-     *   function (qcREST_Interface_Controller $Self, qcREST_Interface_Response $Response, bool $Status, mixed $Private) { }
      * 
      * @access public
-     * @return bool  
+     * @return \qcEvents_Promise
      **/
-    public function setResponse (qcREST_Interface_Response $Response, callable $Callback = null, $Private = null) {
-      if ($Callback)
-        call_user_func ($Callback, $this, $Response, true, $Private);
+    public function setResponse (qcREST_Interface_Response $Response) : \qcEvents_Promise {
+      return \qcEvents_Promise::resolve ($Response);
     }
     // }}}
     

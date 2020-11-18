@@ -76,7 +76,7 @@
      * @access public
      * @return qcREST_Interface_Request
      **/
-    public function getRequest ();
+    public function getRequest () : ?qcREST_Interface_Request;
     // }}}
     
     // {{{ setResponse
@@ -84,35 +84,23 @@
      * Write out a response for a previous request
      * 
      * @param qcREST_Interface_Response $Response The response
-     * @param callable $Callback (optional) A callback to raise once the operation was completed
-     * @param mixed $Private (optional) Any private data to pass to the callback
-     * 
-     * The callback will be raised once the operation was finished in the form of
-     * 
-     *   function (qcREST_Interface_Controller $Self, qcREST_Interface_Response $Response, bool $Status, mixed $Private) { }
      * 
      * @access public
-     * @return bool  
+     * @return \qcEvents_Promise
      **/
-    public function setResponse (qcREST_Interface_Response $Response, callable $Callback, $Private = null);
+    public function setResponse (qcREST_Interface_Response $Response) : \qcEvents_Promise;
     // }}}
     
     // {{{ handle
     /**
      * Try to process a request, if no request is given explicitly try to fetch one from SAPI
      * 
-     * @param callable $Callback
-     * @param mixed $Private (optional)
      * @param qcREST_Interface_Request $Request (optional)
      * 
-     * The callback will be raised in the form of:
-     * 
-     *   function (qcREST_Interface_Controller $Self, qcREST_Interface_Request $Request = null, qcREST_Interface_Response $Response = null, bool $Status, mixed $Private = null) { }
-     * 
      * @access public
-     * @return void
+     * @return \qcEvents_Promise
      **/
-    public function handle (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null);
+    public function handle (qcREST_Interface_Request $Request = null) : \qcEvents_Promise;
     // }}}
   }
 

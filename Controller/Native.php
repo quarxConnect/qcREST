@@ -84,16 +84,16 @@
      * @access public
      * @return qcREST_Interface_Request
      **/
-    public function getRequest () {
+    public function getRequest () : ?qcREST_Interface_Request {
       static $Request = null;
       
       // Check if the request was already served
       if ($Request)
-        return false;
+        return null;
       
       // Check if the request-method is valid
       if (!defined ('qcREST_Interface_Request::METHOD_' . $_SERVER ['REQUEST_METHOD']))
-        return false;
+        return null;
       
       $Method = constant ('qcREST_Interface_Request::METHOD_' . $_SERVER ['REQUEST_METHOD']);
       
@@ -189,17 +189,11 @@
      * Write out a response for a previous request
      * 
      * @param qcREST_Interface_Response $Response The response
-     * @param callable $Callback (optional) A callback to raise once the operation was completed
-     * @param mixed $Private (optional) Any private data to pass to the callback
-     * 
-     * The callback will be raised once the operation was finished in the form of
-     * 
-     *   function (qcREST_Interface_Controller $Self, qcREST_Interface_Response $Response, bool $Status, mixed $Private) { }
      * 
      * @access public
-     * @return bool  
+     * @return \qcEvents_Promise
      **/
-    public function setResponse (qcREST_Interface_Response $Response, callable $Callback = null, $Private = null) {
+    public function setResponse (qcREST_Interface_Response $Response) : \qcEvents_Promise {
       // Make sure there is no output buffered
       while (ob_get_level () > 0)
         ob_end_clean ();
@@ -242,13 +236,7 @@
         echo $Content;
       }
       
-      // Raise callback if one was given
-      if ($Callback)
-        call_user_func ($Callback, $this, $Response, $Status, $Private);
-      
-      // Stop the process here
-      exit ();
-      return $Status;
+      return \qcEvents_Promise::resolve ($Response);
     }
     // }}}
     
@@ -256,18 +244,12 @@
     /**
      * Try to process a request, if no request is given explicitly try to fetch one from SAPI
      * 
-     * @param callable $Callback
-     * @param mixed $Private (optional)
      * @param qcREST_Interface_Request $Request (optional)
-     *    
-     * The callback will be raised in the form of:
-     *   
-     *   function (qcREST_Interface_Controller $Self, qcREST_Interface_Request $Request = null, qcREST_Interface_Response $Response = null, bool $Status, mixed $Private = null) { }
      * 
      * @access public
-     * @return bool
+     * @return \qcEvents_Promise
      **/
-    public function handle (callable $Callback, $Private = null, qcREST_Interface_Request $Request = null) {
+    public function handle (qcREST_Interface_Request $Request = null) : \qcEvents_Promise {
       // Start output-buffering
       ob_start ();
       
@@ -275,7 +257,7 @@
       ini_set ('display_errors', 'Off');
       
       // Inherit to our parent
-      return parent::handle ($Callback, $Private, $Request);
+      return parent::handle ($Request);
     }
     // }}}
   }
