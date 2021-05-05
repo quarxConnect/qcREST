@@ -1,0 +1,42 @@
+{
+    "name" : "quarxconnect/rest",
+    "description" : "Abstraction-layer for RESTfulness",
+    "type" : "library",
+    "keywords" : [ "rest" ],
+    "license" : "GPL-3.0-only",
+    "authors" : [
+        {
+            "name" : "Bernd Holzmüller",
+            "email" : "bernd@quarxconnect.de",
+            "homepage" : "https://quarxconnect.de/",
+            "role" : "Developer"
+        }
+    ],
+    "require" : {
+        "php" : ">=7.3.0",
+        "quarxconnect/events" : "dev-composer",
+        "quarxconnect/entity" : "dev-composer"
+    },
+    "require-dev" : {
+        "phpunit/phpunit" : "^9"
+    },
+    "autoload" : {
+        "psr-4" : {
+            "quarxConnect\\REST\\" : "src/"
+        }
+    },
+    "scripts" : {
+        "test" : [
+            "@php vendor/bin/phpunit tests"
+        ]
+    },
+    "repositories" : [
+        {
+            "type" : "vcs",
+            "url" : "https://gitlab.quarxconnect.de/quarxconnect.de/qcEvents"
+        }, {
+            "type" : "vcs",
+            "url" : "https://gitlab.quarxconnect.de/quarxconnect.de/qcEntity"
+        }
+    ]
+}
