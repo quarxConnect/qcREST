@@ -22,43 +22,42 @@
 
   namespace quarxConnect\REST\ABI;
   use \quarxConnect\Events;
-  use \quarxConnect\Entity;
   
   interface Resource extends Entity {
     // {{{ isReadable
     /**
      * Checks if this resource's attributes might be forwarded to the client
      * 
-     * @param Entity\Card $forUser (optional)
+     * @param \quarxConnect\Entity\Card $forUser (optional)
      * 
      * @access public
      * @return bool
      **/
-    public function isReadable (Entity\Card $forUser = null) : ?bool;
+    public function isReadable (\quarxConnect\Entity\Card $forUser = null) : ?bool;
     // }}}
     
     // {{{ isWritable
     /**
      * Checks if this resource is writable and may be modified by the client
      * 
-     * @param Entity\Card $forUser (optional)
+     * @param \quarxConnect\Entity\Card $forUser (optional)
      * 
      * @access public
      * @return bool
      **/
-    public function isWritable (Entity\Card $forUser = null) : ?bool;
+    public function isWritable (\quarxConnect\Entity\Card $forUser = null) : ?bool;
     // }}}
     
     // {{{ isRemovable
     /**
      * Checks if this resource may be removed by the client
      * 
-     * @param Entity\Card $forUser (optional)
+     * @param \quarxConnect\Entity\Card $forUser (optional)
      * 
      * @access public
      * @return bool
      **/
-    public function isRemovable (Entity\Card $forUser = null) : ?bool;
+    public function isRemovable (\quarxConnect\Entity\Card $forUser = null) : ?bool;
     // }}}
     
     

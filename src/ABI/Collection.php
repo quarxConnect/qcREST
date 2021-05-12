@@ -22,43 +22,42 @@
 
   namespace quarxConnect\REST\ABI;
   use \quarxConnect\Events;
-  use \quarxConnect\Entity;
   
   interface Collection extends Entity {
     // {{{ isWritable
     /**
      * Checks if this collection is writable and may be modified by the client
      * 
-     * @param Entity\Card $forUser (optional)
+     * @param \quarxConnect\Entity\Card $forUser (optional)
      * 
      * @access public
      * @return bool
      **/
-    public function isWritable (Entity\Card $forUser = null) : ?bool;
+    public function isWritable (\quarxConnect\Entity\Card $forUser = null) : ?bool;
     // }}}
     
     // {{{ isRemovable
     /**
      * Checks if this collection may be removed by the client
      * 
-     * @param Entity\Card $forUser (optional)
+     * @param \quarxConnect\Entity\Card $forUser (optional)
      * 
      * @access public
      * @return bool
      **/
-    public function isRemovable (Entity\Card $forUser = null) : ?bool;
+    public function isRemovable (\quarxConnect\Entity\Card $forUser = null) : ?bool;
     // }}}
     
     // {{{ isBrowsable
     /**
      * Checks if children of this directory may be discovered
      * 
-     * @param Entity\Card $forUser (optional)
+     * @param \quarxConnect\Entity\Card $forUser (optional)
      * 
      * @access public
      * @return bool
      **/
-    public function isBrowsable (Entity\Card $forUser = null) : ?bool;
+    public function isBrowsable (\quarxConnect\Entity\Card $forUser = null) : ?bool;
     // }}}
     
     
@@ -69,7 +68,7 @@
      * @access public
      * @return Resource
      **/
-    public function getResource () : Resource;
+    public function getResource () : ?Resource;
     // }}}
     
     // {{{ getNameAttribute
