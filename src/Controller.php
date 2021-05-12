@@ -138,16 +138,16 @@
     /**
      * Register a new input/output-processor on this controller
      * 
-     * @param ABI\Processor $Processor
+     * @param ABI\Processor $newProcessor
      * @param array $mimeTypes (optional) Restrict the processor for these  types
      * 
      * @access public
-     * @return bool
+     * @return void
      **/
-    public function addProcessor (ABI\Processor $Processor, array $mimeTypes = null) : bool {
+    public function addProcessor (ABI\Processor $newProcessor, array $mimeTypes = null) : void {
       // Make sure we have a set of mime-types
       if (!is_array ($mimeTypes) || (count ($mimeTypes) == 0))
-        $mimeTypes = $Processor->getSupportedContentTypes ();
+        $mimeTypes = $newProcessor->getSupportedContentTypes ();
       
       // Process all mime-types
       $haveMime = false;
@@ -164,18 +164,16 @@
         
         // Add to our collection
         if (!isset ($this->typeMaps [$mimeMajor]))
-          $this->typeMaps [$mimeMajor] = [ $mimeMinor => [ $Processor ] ];
+          $this->typeMaps [$mimeMajor] = [ $mimeMinor => [ $newProcessor ] ];
         elseif (!isset ($this->typeMaps [$mimeMajor][$mimeMinor]))
-          $this->typeMaps [$mimeMajor][$mimeMinor] = [ $Processor ];
-        elseif (!in_array ($Processor, $this->typeMaps [$mimeMajor][$mimeMinor], true))
-          $this->typeMaps [$mimeMajor][$mimeMinor][] = $Processor;
+          $this->typeMaps [$mimeMajor][$mimeMinor] = [ $newProcessor ];
+        elseif (!in_array ($newProcessor, $this->typeMaps [$mimeMajor][$mimeMinor], true))
+          $this->typeMaps [$mimeMajor][$mimeMinor][] = $newProcessor;
       }
       
       // Add the processor to our collection
-      if ($haveMime && !in_array ($Processor, $this->Processors, true))
-        $this->Processors [] = $Processor;
-      
-      return $haveMime;
+      if ($haveMime && !in_array ($newProcessor, $this->Processors, true))
+        $this->Processors [] = $newProcessor;
     }
     // }}}
     
