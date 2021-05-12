@@ -27,7 +27,7 @@
     private $responseStatus = ABI\Response::STATUS_OK;
     private $responseMeta = [ ];
     private $contentType = 'application/octet-stream';
-    private $responseContent = '';
+    private $responseContent = null;
     
     // {{{ __construct
     /**
@@ -42,7 +42,7 @@
      * @access friendly
      * @return void
      **/
-    function __construct (ABI\Request $parentRequest, int $responseStatus, string $responseContent = '', string $contentType = null, array $responseMeta = [ ]) {
+    function __construct (ABI\Request $parentRequest, int $responseStatus, string $responseContent = null, string $contentType = null, array $responseMeta = [ ]) {
       // Set content-type to some default
       if (($contentType === null) && ($parentRequest->getMethod () != $parentRequest::METHOD_OPTIONS))
         $contentType = 'application/octet-stream';
@@ -144,7 +144,7 @@
      * @access public
      * @return string
      **/
-    public function getContent () : string {
+    public function getContent () : ?string {
       return $this->responseContent;
     }
     // }}}

@@ -159,7 +159,7 @@
      * @return mixed
      **/
     public function getMeta (string $metaKey = null) {
-      if ($Key === null)
+      if ($metaKey === null)
         return $this->Meta;
       
       return $this->Meta [$metaKey] ?? null;

@@ -255,7 +255,9 @@
         $restRequest = $this->getRequestFromHeader ($requestHeader, $httpServer, $requestBody);
         
         // Forward payload to the request
-        $restRequest->setContent ($requestBody);
+        if ($requestBody)
+          $restRequest->setContent ($requestBody);
+        
         unset ($requestBody);
         
         // Forward the request to REST-Handler
