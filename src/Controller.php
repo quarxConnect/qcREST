@@ -231,16 +231,14 @@
     /**
      * Register a new authenticator on this controller
      * 
-     * @param ABI\Authenticator $Authenticator
+     * @param ABI\Authenticator $newAuthenticator
      * 
      * @access public
-     * @return bool  
+     * @return void
      **/
-    public function addAuthenticator (ABI\Authenticator $Authenticator) : bool {
-      if (!in_array ($Authenticator, $this->Authenticators, true))
-        $this->Authenticators [] = $Authenticator;
-      
-      return true;
+    public function addAuthenticator (ABI\Authenticator $newAuthenticator) : void {
+      if (!in_array ($newAuthenticator, $this->Authenticators, true))
+        $this->Authenticators [] = $newAuthenticator;
     }
     // }}}
     
@@ -248,16 +246,14 @@
     /**
      * Register a new authorizer on this controller
      * 
-     * @param ABI\Authorizer $Authorizer
+     * @param ABI\Authorizer $newAuthorizer
      * 
      * @access public
-     * @return bool
+     * @return void
      **/
-    public function addAuthorizer (ABI\Authorizer $Authorizer) : bool {
-      if (!in_array ($Authorizer, $this->Authorizers, true))
-        $this->Authorizers [] = $Authorizer;
-      
-      return true;
+    public function addAuthorizer (ABI\Authorizer $newAuthorizer) : void {
+      if (!in_array ($newAuthorizer, $this->Authorizers, true))
+        $this->Authorizers [] = $newAuthorizer;
     }
     // }}}
     
