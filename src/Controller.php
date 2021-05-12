@@ -353,8 +353,7 @@
       
       // Make sure we have a root-element assigned
       if (!$this->rootElement)
-        # TODO: This should be a rejection
-        return $this->respondStatus ($theRequest, ABI\Response::STATUS_ERROR);
+        return Events\Promise::reject ('No root-element assigned');
       
       // Find a suitable processor for the response
       $outputProcessor = null;
@@ -364,8 +363,7 @@
           break;
       
       if (!is_object ($outputProcessor))
-        # TODO: This should be a rejection
-        return $this->respondStatus ($theRequest, ABI\Response::STATUS_NO_FORMAT);
+        return Events\Promise::reject ('No suitable output-processor found');
       
       // Try to authenticate the request
       return $this->authenticateRequest ($theRequest)->then (

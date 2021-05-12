@@ -269,7 +269,7 @@
               $restResponse->getContent ()
             );
           },
-          function (\Throwable $error) use ($requestHeader) {
+          function (\Throwable $error) use ($requestHeader, $httpServer) {
             return $httpServer->httpdSetResponse (
               $requestHeader,
               new \quarxConnect\Events\Stream\HTTP\Header ([
