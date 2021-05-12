@@ -47,25 +47,25 @@
      * @param enum $Method The used request-method
      * @param array $Parameters Additional Parameters for this request
      * @param array $Meta Meta-Data for this request
-     * @param string $Content The payload from the request
-     * @param string $ContentType Type of payload
-     * @param array $acceptedContentTypes List of accepted content-types
-     * @param string $IP IP-Address the request was issued from
+     * @param string $requestBody The payload from the request (optional)
+     * @param string $contentType Type of payload (optional)
+     * @param array $acceptedContentTypes List of accepted content-types (optional)
+     * @param string $requestIP IP-Address the request was issued from (optional)
      * @param bool $TLS The request was made using TLS-Encryption (optional)
      * 
      * @access friendly
      * @return void
      **/
-    function __construct (ABI\Controller $Controller, string $URI, int $Method, array $Parameters, array $Meta, string $Content, string $ContentType, array $acceptedContentTypes, string $IP, bool $TLS = false) {
+    function __construct (ABI\Controller $Controller, string $URI, int $Method, array $Parameters, array $Meta, string $requestBody = null, string $contentType = null, array $acceptedContentTypes = null, string $requestIP = null, bool $TLS = false) {
       $this->Controller = $Controller;
       $this->requestURI = $URI;
       $this->requestMethod = $Method;
       $this->requestParameters = $Parameters;
-      $this->requestContent = $Content;
-      $this->requestContentType = $ContentType;
-      $this->acceptedContentTypes = $acceptedContentTypes;
+      $this->requestContent = $requestBody;
+      $this->requestContentType = $contentType;
+      $this->acceptedContentTypes = $acceptedContentTypes ?? [ ];
       $this->Meta = $Meta;
-      $this->IP = $IP;
+      $this->IP = $requestIP ?? '0.0.0.0';
       $this->TLS = !!$TLS;
     }
     // }}}
