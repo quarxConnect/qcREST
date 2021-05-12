@@ -689,7 +689,7 @@
           return $this->respondStatus ($theRequest, ABI\Response::STATUS_FORMAT_ERROR, $defaultHeaders);
         
       // ... or fail if there is content on the request
-      } elseif (strlen ($theRequest->getContent ()) > 0) {
+      } elseif ($theRequest->getContent () !== null) {
         if (defined ('\\QCREST_DEBUG'))
           trigger_error ('Content on request where none is expected');
         
@@ -1118,7 +1118,7 @@
                 $Item->_id = $Child->getName ();
                 $Item->_href = $baseURI . $this->getEntityURI ($Child);
                 $Item->_collection = $Child->hasChildCollection ();
-                $Item->_permissions = new stdClass;
+                $Item->_permissions = new \stdClass;
                 $Item->_permissions->read = $Child->isReadable ($User);
                 $Item->_permissions->write = $Child->isWritable ($User);
                 $Item->_permissions->delete = $Child->isRemovable ($User);
@@ -1189,7 +1189,7 @@
                 );
               }
               
-              return \Events\Promise::all ($Promises)->then (
+              return Events\Promise::all ($Promises)->then (
                 function ()
                 use ($Request, $Resource, $Representation, $Headers, $outputProcessor, $Collection, $First, $Last, $Search, $Sort, $Order) {
                   // Check if we have to apply anything
@@ -1410,7 +1410,7 @@
                           if (!$requireAttributes || isset ($currentRepresentation [$Key]))
                             $currentRepresentation [$Key] = $Value;
                           else
-                            throw new exception ('Missing attribute ' . $Key);
+                            throw new \Exception ('Missing attribute ' . $Key);
                         
                         // Forward the update
                         return $Child->setRepresentation ($currentRepresentation, $Request);
