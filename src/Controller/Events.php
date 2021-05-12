@@ -115,35 +115,29 @@
     /**
      * Create a REST-Request from a HTTP-Request-Header
      * 
-     * @param \quarxConnect\Events\Stream\HTTP\Header $Header
+     * @param \quarxConnect\Events\Stream\HTTP\Header $requestHeader
      * @param \quarxConnect\Events\Server\HTTP $Server
      * @param string $Body (optional)
      * 
      * @access public
      * @return ABI\Request
      **/
-    public function getRequestFromHeader (\quarxConnect\Events\Stream\HTTP\Header $Header, \quarxConnect\Events\Server\HTTP $Server, string $Body = null) : ?ABI\Request {
+    public function getRequestFromHeader (\quarxConnect\Events\Stream\HTTP\Header $requestHeader, \quarxConnect\Events\Server\HTTP $Server, string $Body = null) : ABI\Request {
       // Make sure it's a request
-      if (!$Header->isRequest ()) {
-        trigger_error ('Presented header is not a request');
-        
-        return null;
-      }
+      if (!$requestHeader->isRequest ())
+        throw new \Error ('Presented header is not a request');
       
       // Check if the request-method is valid
-      $Method = strtoupper ($Header->getMethod ());
+      $requestMethod = strtoupper ($requestHeader->getMethod ());
       
-      if (!defined (ABI\Request::class . '::METHOD_' . $Method)) {
-        trigger_error ('Unknown method ' . $Method);
-        
-        return null;
-      }
+      if (!defined (ABI\Request::class . '::METHOD_' . $requestMethod))
+        throw new \Exception ('Unknown method ' . $requestMethod);
       
       // Map the method to local representation
-      $Method = constant (ABI\Request::class . '::METHOD_' . $Method);
+      $requestMethod = constant (ABI\Request::class . '::METHOD_' . $requestMethod);
       
       // Strip parameters from URI
-      $URI = $this->explodeURI ($Header->getURI ());
+      $URI = $this->explodeURI ($requestHeader->getURI ());
       
       // Check wheter to strip virtual base URI
       if ($this->virtualBaseURI !== null) {
@@ -156,7 +150,7 @@
       }
       
       // Process headers
-      $Meta = $Header->getFields ();
+      $Meta = $requestHeader->getFields ();
       $ContentType = null;
       $Types = null;
       
@@ -189,7 +183,7 @@
       
       // Finaly create new request
       # TODO: Determine if TLS was used here
-      return new REST\Request ($this, $URI [0], $Method, $URI [1], $Meta, $Body, $ContentType, $Types, $Server->getRemoteHost ());
+      return new REST\Request ($this, $URI [0], $requestMethod, $URI [1], $Meta, $Body, $ContentType, $Types, $Server->getRemoteHost ());
     }
     // }}}
     
@@ -248,40 +242,54 @@
     /**
      * Process a HTTP-Request
      * 
-     * @param \quarxConnect\Events\Server\HTTP $Server
-     * @param \quarxConnect\Events\Stream\HTTP\Header $Request
-     * @param string $Body (optional)
+     * @param \quarxConnect\Events\Server\HTTP $httpServer
+     * @param \quarxConnect\Events\Stream\HTTP\Header $requestHeader
+     * @param string $requestBody (optional)
      * 
      * @access public
      * @return void
      **/
-    public function handleRequest (\quarxConnect\Events\Server\HTTP $Server, \quarxConnect\Events\Stream\HTTP\Header $Request, string $Body = null) : void {
+    public function handleRequest (\quarxConnect\Events\Server\HTTP $httpServer, \quarxConnect\Events\Stream\HTTP\Header $requestHeader, string $requestBody = null) : void {
       // Try to create a REST-Request
-        if (!is_object ($restRequest = $this->getRequestFromHeader ($Request, $Server, $Body))) {
-          // Create Response-Header
-          $Response = new \quarxConnect\Events\Stream\HTTP\Header ([
-            'HTTP/' . $Request->getVersion (true) . ' 500 Internal Server Error',
-            'Server: ' . self::SIGNATURE,
-            'Content-Type: text/plain'   
-          ]);
-             
-          $Server->httpdSetResponse ($Request, $Response, 'Internal Service Error' . "\r\n");
-          
-          return;
-        }
-         
+      try {
+        $restRequest = $this->getRequestFromHeader ($requestHeader, $httpServer, $requestBody);
+        
         // Forward payload to the request
-        $restRequest->setContent ($Body);
-        unset ($Body);
-
+        $restRequest->setContent ($requestBody);
+        unset ($requestBody);
+        
         // Forward the request to REST-Handler
-        $this->handle (
-          function (ABI\Controller $Controller, ABI\Request $restRequest, ABI\Response $restResponse, $Status) use ($Request, $Server) {
-            // Forward the response
-            $Server->httpdSetResponse ($Request, $this->getHeaderFromResponse ($restResponse), $restResponse->getContent ());
-          }, null,
-          $restRequest
+        $this->handle ($restRequest)->then (
+          function (ABI\Response $restResponse) use ($requestHeader, $httpServer) {
+            return $httpServer->httpdSetResponse (
+              $requestHeader,
+              $this->getHeaderFromResponse ($restResponse),
+              $restResponse->getContent ()
+            );
+          },
+          function (\Throwable $error) use ($requestHeader) {
+            return $httpServer->httpdSetResponse (
+              $requestHeader,
+              new \quarxConnect\Events\Stream\HTTP\Header ([
+                'HTTP/' . $requestHeader->getVersion (true) . ' 500 Internal Server Error',
+                'Server: ' . $this::SIGNATURE,
+                'Content-Type: text/plain'   
+              ]),
+              (string)$error . "\r\n"
+            );
+          }
         );
+      } catch (\Throwable $error) {
+        $httpServer->httpdSetResponse (
+          $requestHeader,
+          new \quarxConnect\Events\Stream\HTTP\Header ([
+            'HTTP/' . $requestHeader->getVersion (true) . ' 500 Internal Server Error',
+            'Server: ' . $this::SIGNATURE,
+            'Content-Type: text/plain'   
+          ]),
+          (string)$error . "\r\n"
+        );
+      }
     }
     // }}}
   }
