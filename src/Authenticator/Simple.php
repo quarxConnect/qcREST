@@ -84,7 +84,7 @@
       
       // Create dummy-entity
       $userEntity = new Entity\Card (null, 'VCARD');
-      $userEntity->userEntity->setKind ('individual');
+      $userEntity->setKind ('individual');
       $userEntity->updateProperty ('FN', $userName);
       
       return Events\Promise::resolve ($userEntity);
