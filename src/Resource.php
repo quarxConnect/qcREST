@@ -274,7 +274,7 @@
      * @access public
      * @return Events\Promise 
      **/
-    public function remove (ABI\Request $fromRequest) : Events\Promise {
+    public function remove (ABI\Request $fromRequest = null) : Events\Promise {
       return Events\Promise::reject ('Unimplemented');
     }
     // }}}
