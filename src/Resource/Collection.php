@@ -320,11 +320,13 @@
     // {{{ remove  
     /**   
      * Remove this resource from the server
-     *    
+     * 
+     * @param ABI\Request $fromRequest (optional) The Request that triggered this function-call
+     * 
      * @access public
      * @return Events\Promise
      **/
-    public function remove () : Events\Promise {
+    public function remove (ABI\Request $fromRequest) : Events\Promise {
       return Events\Promise::reject ('Unimplemented');
     }
     // }}}

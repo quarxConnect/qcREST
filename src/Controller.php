@@ -909,7 +909,7 @@
           }
           
           // Try to remove the resource
-          return $Resource->remove ()->then (
+          return $Resource->remove ($Request)->then (
             function () use ($Request, $Headers) {
               return $this->respondStatus ($Request, ABI\Response::STATUS_REMOVED, $Headers);
             },
@@ -1435,7 +1435,7 @@
                 
                 // Enqueue it for removal (chilren will only be removed if the request is of method PUT)
                 } elseif ($Removals !== null)
-                  $Promises [] = $Child->remove ()->catch (
+                  $Promises [] = $Child->remove ($Request)->catch (
                     function () use (&$lastError) {
                       $lastError = ABI\Response::STATUS_ERROR;
                     }
@@ -1497,7 +1497,7 @@
             return $this->respondStatus ($Request, ABI\Response::STATUS_NOT_ALLOWED, $Headers);
           }
           
-          return $Collection->remove ()->then (
+          return $Collection->remove ($Request)->then (
             function ()
             use ($Request, $Headers) {
               return $this->respondStatus ($Request, ABI\Response::STATUS_OK, $Headers);

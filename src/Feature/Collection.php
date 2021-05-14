@@ -156,11 +156,13 @@
     // {{{ remove  
     /** 
      * Remove this resource from the server
-     *    
+     * 
+     * @param ABI\Request $fromRequest (optional) The Request that triggered this function-call
+     * 
      * @access public
      * @return Events\Promise
      **/
-    public function remove () : Events\Promise {
+    public function remove (ABI\Request $fromRequest = null) : Events\Promise {
       return Events\Promise::reject ('This collection is not writable and you should not have called this function');
     }
     // }}}

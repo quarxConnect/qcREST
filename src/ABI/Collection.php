@@ -136,10 +136,12 @@
     // {{{ remove  
     /** 
      * Remove this resource from the server
-     *    
+     * 
+     * @param Request $fromRequest (optional) The Request that triggered this function-call
+     * 
      * @access public
      * @return Events\Promise
      **/
-    public function remove () : Events\Promise;
+    public function remove (Request $fromRequest = null) : Events\Promise;
     // }}}
   }
