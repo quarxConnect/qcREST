@@ -1047,16 +1047,22 @@
           // Check if the collection supports extended queries
           if ($Collection instanceof ABI\Collection\Extended) {
             // Apply search-phrase
-            if ($Search && $Collection->setSearchPhrase ($Search))
+            if ($Search) {
+              $Collection->setSearchPhrase ($Search);
               $Search = null;
+            }
             
             // Apply sorting
-            if ($Sort && $Collection->setSorting ($Sort, $Order))
+            if ($Sort) {
+              $Collection->setSorting ($Sort, $Order);
               $Sort = $Order = null;
+            }
             
             // Apply offset/limit
-            if (!$Sort && !$Search && ($First || $Last) && $Collection->setSlice ($First, ($Last !== null ? $Last - $First : null)))
+            if (!$Sort && !$Search && ($First || $Last)) {
+              $Collection->setSlice ($First, ($Last !== null ? $Last - $First : null));
               $First = $Last = null;
+            }
           }
           
           // Request the children of this resource
