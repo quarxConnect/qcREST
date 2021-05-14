@@ -231,13 +231,11 @@
       header ('Status: ' . $statusCode . ($statusText !== null ? ' ' . $statusText : ''));
       header ('X-Powered-By: qcREST/0.2 for CGI');
       
-      if ($ContentType = $Response->getContentType ())
-        header ('Content-Type: ' . $ContentType);
-      
-      if (($Content = $Response->getContent ()) !== null) {
-        header ('Content-Length: ' . strlen ($Content));
+      if (($responseBody = $Response->getContent ()) !== null) {
+        header ('Content-Type: ' . $Response->getContentType ());
+        header ('Content-Length: ' . strlen ($responseBody));
         
-        echo $Content;
+        echo $responseBody;
       }
       
       return Events\Promise::resolve ($Response);

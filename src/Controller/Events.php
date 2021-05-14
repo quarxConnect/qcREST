@@ -209,8 +209,8 @@
       ]);
       
       // Append Meta
-      if ($ContentType = $Response->getContentType ())
-        $httpResponse->setField ('Content-Type', $ContentType);
+      if ($Response->getContent () !== null)
+        $httpResponse->setField ('Content-Type', $Response->getContentType ());
       
       foreach ($Response->getMeta () as $Key=>$Value)
         $httpResponse->setField ($Key, $Value);
