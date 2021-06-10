@@ -20,6 +20,9 @@
     "require-dev" : {
         "phpunit/phpunit" : "^9"
     },
+    "suggest" : {
+        "quarxconnect/template" : "HTML-Templates for REST-Output"
+    },
     "autoload" : {
         "psr-4" : {
             "quarxConnect\\REST\\" : "src/"
