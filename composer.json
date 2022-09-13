@@ -14,8 +14,8 @@
     ],
     "require" : {
         "php" : ">=7.3.0",
-        "quarxconnect/events" : "0.0.1 as dev-composer",
-        "quarxconnect/entity" : "dev-main"
+        "quarxconnect/events" : "^0.0.1",
+        "quarxconnect/entity" : "^0.0.1"
     },
     "require-dev" : {
         "phpunit/phpunit" : "^9"
@@ -37,10 +37,11 @@
     "quarxconnect": {
       "type": "composer",
       "url": "https://gitlab.quarxconnect.de/api/v4/group/3/-/packages/composer/"
-    },
-    "entity-legacy" : {
-      "type" : "vcs",
-      "url" : "https://gitlab.quarxconnect.de/quarxconnect/entity"
+    }
+  },
+  "extra" : {
+    "branch-alias" : {
+      "dev-main" : "0.0.1-dev"
     }
   }
 }

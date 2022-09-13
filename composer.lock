@@ -4,19 +4,84 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "29b7e391a4eb799150c4bc790b6416c2",
+    "content-hash": "c31f47e7c649fb80a7d0f25a47c8354d",
     "packages": [
         {
-            "name": "quarxconnect/entity",
-            "version": "dev-main",
+            "name": "quarxconnect/base",
+            "version": "0.0.2",
             "source": {
                 "type": "git",
-                "url": "https://gitlab.quarxconnect.de/quarxconnect/entity",
-                "reference": "f01b3752207af3dc468c88322558468e261ac2d7"
+                "url": "https://gitlab.quarxconnect.de/quarxconnect/base.git",
+                "reference": "e9ae9fad5eb5f1af4f3800150cc8c1fb5f32ea9e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://gitlab.quarxconnect.de/api/v4/projects/3/packages/composer/archives/quarxconnect/base.zip?sha=e9ae9fad5eb5f1af4f3800150cc8c1fb5f32ea9e",
+                "reference": "e9ae9fad5eb5f1af4f3800150cc8c1fb5f32ea9e",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.4.0",
+                "quarxconnect/events": "^0.0.1"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9"
+            },
+            "suggest": {
+                "quarxconnect/rest": "RESTfulness for Base"
+            },
+            "bin": [
+                "bin/copy.php"
+            ],
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "quarxConnect\\Base\\": "src/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "@php vendor/bin/phpunit tests"
+                ]
+            },
+            "license": [
+                "GPL-3.0-only"
+            ],
+            "authors": [
+                {
+                    "name": "Bernd Holzmüller",
+                    "role": "Developer",
+                    "email": "bernd@quarxconnect.de",
+                    "homepage": "https://quarxconnect.de/"
+                }
+            ],
+            "description": "Asynchronous Database Abstraction Layer in PHP",
+            "keywords": [
+                "async",
+                "database",
+                "mysql",
+                "sqlite"
+            ]
+        },
+        {
+            "name": "quarxconnect/entity",
+            "version": "0.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://gitlab.quarxconnect.de/quarxconnect/entity.git",
+                "reference": "98085a40b5109576d61f422a1294b29ba76ad8d1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://gitlab.quarxconnect.de/api/v4/projects/7/packages/composer/archives/quarxconnect/entity.zip?sha=98085a40b5109576d61f422a1294b29ba76ad8d1",
+                "reference": "98085a40b5109576d61f422a1294b29ba76ad8d1",
+                "shasum": ""
             },
             "require": {
                 "php": ">=7.3.0",
-                "quarxconnect/events": "dev-composer"
+                "quarxconnect/base": "^0.0.2",
+                "quarxconnect/events": "^0.0.1",
+                "quarxconnect/rest": "^0.0.1"
             },
             "require-dev": {
                 "phpunit/phpunit": "^9"
@@ -25,7 +90,6 @@
                 "quarxconnect/base": "Database-Storage",
                 "quarxconnect/rest": "RESTfulness for Entities"
             },
-            "default-branch": true,
             "type": "library",
             "autoload": {
                 "psr-4": {
@@ -43,17 +107,16 @@
             "authors": [
                 {
                     "name": "Bernd Holzmüller",
+                    "role": "Developer",
                     "email": "bernd@quarxconnect.de",
-                    "homepage": "https://quarxconnect.de/",
-                    "role": "Developer"
+                    "homepage": "https://quarxconnect.de/"
                 }
             ],
             "description": "vCard and iCalendar Library",
             "keywords": [
                 "icalendar",
                 "vcard"
-            ],
-            "time": "2022-05-28T23:10:25+00:00"
+            ]
         },
         {
             "name": "quarxconnect/events",
@@ -1834,18 +1897,9 @@
             "time": "2021-07-28T10:34:58+00:00"
         }
     ],
-    "aliases": [
-        {
-            "package": "quarxconnect/events",
-            "version": "0.0.1.0",
-            "alias": "dev-composer",
-            "alias_normalized": "dev-composer"
-        }
-    ],
+    "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "quarxconnect/entity": 20
-    },
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
